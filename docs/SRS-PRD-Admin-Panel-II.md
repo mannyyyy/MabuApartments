@@ -32,7 +32,7 @@ V1 scope now includes a 5-bedroom Mabu Court apartment with selectable bedrooms 
 
 1. **Booking Allocation**: Guests select **room type**, system assigns a **specific room** at booking creation based on availability.
 2. **Room Reassignment**: Admins may reassign a booking **before `CONFIRMED`**, **same room type only**, with an audit reason.
-3. **Availability Model**: Per-room, per-night availability with explicit holds.
+3. **Availability Model**: Per-room, night-based availability (check-in inclusive, check-out exclusive) with explicit holds; availability releases at 11:45 AM local time (Africa/Lagos) on the check-out date.
 4. **Property Model**: Room types belong to a Property; Property holds address/location data.
 5. **Multi-Bedroom Unit (Mabu Court)**: Single unit inventory; booking selects 2-5 bedrooms; unused bedrooms locked; common areas accessible.
 6. **Hold TTL**: Payment hold is a fixed 15 minutes.
@@ -103,7 +103,7 @@ Given small inventory and per-room availability requirements, v1 uses **room ass
 ### 1.3 Key Design Principles
 
 1. Single booking model with status-based pipeline.
-2. Night-based availability (check-in inclusive, check-out exclusive).
+2. Night-based availability (check-in inclusive, check-out exclusive). Check-in can be anytime; check-out time is 11:45 AM local time (Africa/Lagos), and availability is released at that time on the check-out date.
 3. Temporary holds with explicit expiry and release rules.
 4. Required document verification before confirmation.
 5. Separation of concerns: operational data in DB, marketing in Sanity.
@@ -134,6 +134,7 @@ Given small inventory and per-room availability requirements, v1 uses **room ass
   - Required fields
   - Date validity and logical range
   - Same-day bookings allowed (no cutoff)
+  - Check-in can be anytime; check-out time is 11:45 AM local time (Africa/Lagos), and availability is released at that time on the check-out date
   - Capacity check by room type
   - Availability check per room
   - If room type has `minBedrooms/maxBedrooms`, require `bedroomsSelected` within range
@@ -244,7 +245,7 @@ Given small inventory and per-room availability requirements, v1 uses **room ass
   - Min bedrooms, max bedrooms (for selectable-bedroom units)
   - Bedroom pricing tiers (2-5) (values TBD)
   - Access scope rule (e.g., selected bedrooms + common areas)
-  - Base price
+  - Base price`
   - Amenities (TBD for Mabu Court)
   - Images (multiple)
   - Status (Draft/Published/Archived)
@@ -295,6 +296,7 @@ Given small inventory and per-room availability requirements, v1 uses **room ass
   - rejection: release immediately
   - hold expiration: auto release
   - late payment: follow FR-1.2 late-payment reassignment rule
+  - checkout time: availability is released at 11:45 AM local time (Africa/Lagos) on the check-out date
 
 #### FR-3.2: Manual Availability Overrides
 
