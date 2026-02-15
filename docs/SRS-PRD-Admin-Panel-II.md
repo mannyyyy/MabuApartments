@@ -205,6 +205,8 @@ Given small inventory and per-room availability requirements, v1 uses **room ass
   - Admin selects booking and new check-out date.
   - System checks availability for the same room for added nights.
   - If available: generate Paystack link for additional amount.
+  - Create a temporary hold on the added nights for the same room with TTL 15 minutes.
+  - If payment is not completed before hold expiry: auto-release the added-night hold and mark extension as failed (admin may retry).
   - After payment: update check-out date, extend holds.
   - If unavailable: deny extension.
 - **Audit**: Log extension attempt and outcome.
@@ -289,6 +291,7 @@ Given small inventory and per-room availability requirements, v1 uses **room ass
 - **Rule**: Single-unit room types (e.g., Mabu Court 5 Bedroom Apartment) have only one room record; any active hold blocks all concurrent bookings.
 - **Holds**:
   - `PENDING_PAYMENT`: hold with TTL 15 minutes
+  - Extension payment: hold added nights for the same room with TTL 15 minutes
   - `PAID_PENDING_VERIFICATION`: hold until `verificationDueAt`
   - `CONFIRMED`: permanent block
 - **Release Rules**:
@@ -296,6 +299,7 @@ Given small inventory and per-room availability requirements, v1 uses **room ass
   - rejection: release immediately
   - hold expiration: auto release
   - late payment: follow FR-1.2 late-payment reassignment rule
+  - extension hold expiration: auto release; extension fails and must be retried
   - checkout time: availability is released at 11:45 AM local time (Africa/Lagos) on the check-out date
 
 #### FR-3.2: Manual Availability Overrides
