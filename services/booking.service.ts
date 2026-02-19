@@ -1,4 +1,5 @@
 import prisma from "@/lib/db"
+import { eachDayOfInterval } from "date-fns"
 import type { CreateBookingApiInput } from "@/lib/validators/booking-api.schema"
 
 export async function createBookingWithRoom(input: CreateBookingApiInput) {
@@ -76,3 +77,69 @@ export async function updateAvailabilityForBookingRange(
   }
 }
 
+async function checkAvailability(roomId: string, startDate: Date, endDate: Date): Promise<boolean> {
+  const availability = await prisma.availability.findMany({
+    where: {
+      roomId,
+      date: {
+        gte: startDate,
+        lt: endDate,
+      },
+    },
+  })
+
+  return availability.every((item) => item.isAvailable)
+}
+
+async function updateRoomAvailability(roomId: string, startDate: Date, endDate: Date, isAvailable: boolean) {
+  const dates = eachDayOfInterval({ start: startDate, end: endDate })
+
+  for (const date of dates) {
+    await prisma.availability.updateMany({
+      where: {
+        roomId,
+        date,
+      },
+      data: {
+        isAvailable,
+      },
+    })
+  }
+}
+
+export async function extendBookingAndUpdateAvailability(bookingId: string, newCheckOut: Date) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: {
+      room: {
+        include: {
+          roomType: true,
+        },
+      },
+    },
+  })
+
+  if (!booking) {
+    return { status: "not_found" as const }
+  }
+
+  const isAvailable = await checkAvailability(booking.roomId, booking.checkOut, newCheckOut)
+  if (!isAvailable) {
+    return { status: "unavailable" as const }
+  }
+
+  const additionalNights = Math.ceil((newCheckOut.getTime() - booking.checkOut.getTime()) / (1000 * 3600 * 24))
+  const additionalPrice = additionalNights * booking.room.roomType.price
+
+  const updatedBooking = await prisma.booking.update({
+    where: { id: bookingId },
+    data: {
+      checkOut: newCheckOut,
+      totalPrice: booking.totalPrice + additionalPrice,
+    },
+  })
+
+  await updateRoomAvailability(booking.roomId, booking.checkOut, newCheckOut, false)
+
+  return { status: "updated" as const, booking: updatedBooking }
+}
