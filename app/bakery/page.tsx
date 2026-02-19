@@ -78,7 +78,8 @@ export default function BakeryPage() {
               src={slide.image || "/placeholder.svg"}
               alt={`Bakery slide ${index + 1}`}
               fill
-              className="object-cover transform transition-transform duration-[2000ms] ease-in-out"
+              className="object-cover transform transition-transform ease-in-out"
+              style={{ transitionDuration: "2000ms" }}
               priority={index === 0}
             />
             {/* Dark overlay */}
@@ -435,4 +436,3 @@ const animationStyles = `
   animation-delay: 300ms;
 }
 `
-

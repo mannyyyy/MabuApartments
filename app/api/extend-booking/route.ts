@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { eachDayOfInterval } from 'date-fns'
-
-const prisma = new PrismaClient()
+import prisma from '@/lib/db'
 
 export async function POST(req: Request) {
   try {
@@ -81,4 +79,3 @@ async function updateRoomAvailability(roomId: string, startDate: Date, endDate: 
     })
   }
 }
-

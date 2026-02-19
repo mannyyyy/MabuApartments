@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
-import { PrismaClient } from "@prisma/client"
 import { sendBookingConfirmationEmail, sendManagerNotificationEmail } from "@/utils/email"
-
-const prisma = new PrismaClient()
+import prisma from "@/lib/db"
 
 export async function POST(req: Request) {
   try {
@@ -120,4 +118,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: "Failed to create booking" }, { status: 500 })
   }
 }
-

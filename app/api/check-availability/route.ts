@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
-import { PrismaClient } from "@prisma/client"
 import { startOfDay, endOfDay } from "date-fns"
-
-const prisma = new PrismaClient()
+import prisma from "@/lib/db"
 
 export async function POST(req: Request) {
   try {
@@ -62,4 +60,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to check availability" }, { status: 500 })
   }
 }
-

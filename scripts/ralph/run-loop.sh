@@ -158,7 +158,7 @@ if [[ "$ALLOW_DIRTY" -ne 1 ]] && [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
-PROMPT_FILE="$(mktemp "${TMPDIR:-/tmp}/ralph-${SCOPE_ID}-XXXX.txt")"
+PROMPT_FILE="$(mktemp "${TMPDIR:-/tmp}/ralph-${SCOPE_ID}-XXXXXX.txt")"
 cp "$PROMPT_TEMPLATE" "$PROMPT_FILE"
 cat >>"$PROMPT_FILE" <<EOF
 
@@ -259,4 +259,3 @@ echo "Loop result: $status"
 echo "Changed files: $changed_csv"
 echo "Gate result: $gate_result"
 echo "Next scope: $next_scope"
-
