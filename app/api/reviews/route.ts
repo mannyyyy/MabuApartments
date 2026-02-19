@@ -1,40 +1,36 @@
-import { NextResponse } from 'next/server'
 import { reviewListQuerySchema } from '@/lib/validators/review.schema'
 import { getPaginatedReviews } from '@/services/review.service'
+import { fail, ok } from "@/lib/api/response"
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
-  const roomId = searchParams.get('roomId')
-  const page = parseInt(searchParams.get('page') || '1')
-  const limit = parseInt(searchParams.get('limit') || '5')
+  const parsedQuery = reviewListQuerySchema.safeParse({
+    roomId: searchParams.get('roomId') ?? '',
+    page: searchParams.get('page') ?? '1',
+    limit: searchParams.get('limit') ?? '5',
+  })
 
-  const roomIdValidation = reviewListQuerySchema.safeParse({ roomId: roomId ?? '' })
-  if (!roomIdValidation.success) {
-    return NextResponse.json({ error: 'Room ID is required' }, { status: 400 })
+  if (!parsedQuery.success) {
+    return fail("Invalid review query parameters", 400, "VALIDATION_ERROR", parsedQuery.error.flatten())
   }
 
   try {
     const { reviews, hasMore } = await getPaginatedReviews({
-      roomId: roomIdValidation.data.roomId,
-      page,
-      limit,
+      roomId: parsedQuery.data.roomId,
+      page: parsedQuery.data.page,
+      limit: parsedQuery.data.limit,
     })
 
-    return NextResponse.json({
+    return ok({
       reviews,
       hasMore,
     })
   } catch (error) {
     console.error('Error fetching reviews:', error)
-    return NextResponse.json({ error: 'Failed to fetch reviews' }, { status: 500 })
+    return fail("Failed to fetch reviews")
   }
 }
 
 export async function POST() {
-  return NextResponse.json(
-    {
-      error: "Review creation moved to server actions. Use submitReviewAction.",
-    },
-    { status: 405 },
-  )
+  return fail("Review creation moved to server actions. Use submitReviewAction.", 405, "METHOD_NOT_ALLOWED")
 }

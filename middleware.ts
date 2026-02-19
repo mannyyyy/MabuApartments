@@ -1,7 +1,28 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const WINDOW_MS = 15 * 60 * 1000
-const MAX_REQUESTS = 100
+type RateLimitPolicy = {
+  windowMs: number
+  maxRequests: number
+}
+
+const DEFAULT_POLICY: RateLimitPolicy = {
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 100,
+}
+
+const ROUTE_POLICIES: Array<{ matcher: RegExp; policy: RateLimitPolicy; bucket: string }> = [
+  {
+    matcher: /^\/api\/reviews$/,
+    policy: { windowMs: 15 * 60 * 1000, maxRequests: 60 },
+    bucket: "reviews",
+  },
+  {
+    matcher: /^\/api\/unavailable-dates$/,
+    policy: { windowMs: 15 * 60 * 1000, maxRequests: 60 },
+    bucket: "unavailable_dates",
+  },
+]
+
 const ipHits = new Map<string, { count: number; resetAt: number }>()
 
 function getClientIp(req: NextRequest): string {
@@ -13,16 +34,24 @@ function getClientIp(req: NextRequest): string {
   return realIp?.trim() || "unknown"
 }
 
-function isRateLimited(ip: string, now: number): boolean {
-  const hit = ipHits.get(ip)
+function getPolicy(pathname: string) {
+  const match = ROUTE_POLICIES.find((item) => item.matcher.test(pathname))
+  if (!match) {
+    return { policy: DEFAULT_POLICY, bucket: "default" }
+  }
+  return { policy: match.policy, bucket: match.bucket }
+}
+
+function isRateLimited(key: string, now: number, policy: RateLimitPolicy): boolean {
+  const hit = ipHits.get(key)
   if (!hit || hit.resetAt <= now) {
-    ipHits.set(ip, { count: 1, resetAt: now + WINDOW_MS })
+    ipHits.set(key, { count: 1, resetAt: now + policy.windowMs })
     return false
   }
 
   hit.count += 1
-  ipHits.set(ip, hit)
-  return hit.count > MAX_REQUESTS
+  ipHits.set(key, hit)
+  return hit.count > policy.maxRequests
 }
 
 function pruneExpired(now: number) {
@@ -45,9 +74,11 @@ export function middleware(req: NextRequest) {
   pruneExpired(now)
 
   const ip = getClientIp(req)
-  if (isRateLimited(ip, now)) {
+  const { policy, bucket } = getPolicy(pathname)
+  const key = `${ip}:${bucket}`
+  if (isRateLimited(key, now, policy)) {
     return NextResponse.json(
-      { message: "Too many requests, please try again later." },
+      { success: false, error: { code: "RATE_LIMITED", message: "Too many requests, please try again later." } },
       { status: 429 },
     )
   }
