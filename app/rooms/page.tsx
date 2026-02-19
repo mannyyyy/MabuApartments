@@ -1,8 +1,14 @@
+import type { Metadata } from "next"
 import prisma from "@/lib/db"
 import RoomList from "@/components/RoomList"
 import Hero from "@/components/Hero"
 
 export const revalidate = 300
+
+export const metadata: Metadata = {
+  title: "Rooms & Suites",
+  description: "Browse rooms and suites at Mabu Apartments with pricing and availability details.",
+}
 
 export default async function RoomsPage() {
   const roomTypes = await prisma.roomType.findMany()

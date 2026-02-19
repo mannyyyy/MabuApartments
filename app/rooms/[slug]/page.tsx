@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { Suspense } from "react"
 import { RoomCarousel } from "@/components/room-carousel"
 import { Reviews } from "@/components/reviews/Reviews"
@@ -30,6 +31,23 @@ async function getRoomType(slug: string) {
 
 interface PageProps {
   params: Promise<{ slug: string }>
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params
+  const roomType = await getRoomType(slug)
+
+  if (!roomType) {
+    return {
+      title: "Room Not Found",
+      description: "The requested room could not be found.",
+    }
+  }
+
+  return {
+    title: roomType.name,
+    description: roomType.description,
+  }
 }
 
 export default async function RoomPage({ params }: PageProps) {

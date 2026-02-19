@@ -9,8 +9,23 @@ import ErrorBoundary from '@/components/error-boundary'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Mabu Apartments',
+  title: {
+    default: 'Mabu Apartments',
+    template: '%s | Mabu Apartments',
+  },
   description: 'Luxury apartments for your stay in Abuja',
+  applicationName: 'Mabu Apartments',
+  openGraph: {
+    title: 'Mabu Apartments',
+    description: 'Luxury apartments for your stay in Abuja',
+    type: 'website',
+    siteName: 'Mabu Apartments',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Mabu Apartments',
+    description: 'Luxury apartments for your stay in Abuja',
+  },
 }
 
 export default function RootLayout({
