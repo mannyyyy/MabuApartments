@@ -1,5 +1,3 @@
-"use client"
-
 type PriceSummaryProps = {
   totalPrice: number
   nights: number
@@ -23,4 +21,3 @@ export function PriceSummary({ totalPrice, nights, pricePerNight }: PriceSummary
     </div>
   )
 }
-

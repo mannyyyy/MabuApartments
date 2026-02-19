@@ -1,6 +1,3 @@
-"use client"
-
-import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -18,8 +15,6 @@ type RoomType = {
 }
 
 export default function RoomList({ roomTypes }: { roomTypes: RoomType[] }) {
-  const [filteredRooms] = useState(roomTypes) // Directly set the roomTypes as filteredRooms
-
   return (
     <div className="flex flex-col min-h-screen">
       <div className="flex flex-col lg:flex-row">
@@ -36,7 +31,7 @@ export default function RoomList({ roomTypes }: { roomTypes: RoomType[] }) {
         </div>
         <div className="lg:w-3/4 p-2 sm:p-4 lg:py-8 lg:px-12 pb-24 ">
           <div className="max-w-full lg:max-w-4xl xl:max-w-5xl mx-auto space-y-32 sm:space-y-40 md:space-y-48 pb-16">
-            {filteredRooms.map((room) => (
+            {roomTypes.map((room) => (
               <div key={room.id} className="relative group">
                 <div className="aspect-[4/3] overflow-hidden rounded-[3rem]">
                   <Image
@@ -77,4 +72,3 @@ export default function RoomList({ roomTypes }: { roomTypes: RoomType[] }) {
     </div>
   )
 }
-
