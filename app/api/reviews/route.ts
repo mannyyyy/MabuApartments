@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
-import { ZodError } from "zod"
 import { reviewListQuerySchema } from '@/lib/validators/review.schema'
 import { getPaginatedReviews } from '@/services/review.service'
-import { submitReviewAction } from "@/app/actions/reviews"
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -32,16 +30,11 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
-  try {
-    const newReview = await submitReviewAction(await req.json())
-
-    return NextResponse.json(newReview)
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
-    console.error('Error creating review:', error)
-    return NextResponse.json({ error: 'Failed to create review' }, { status: 500 })
-  }
+export async function POST() {
+  return NextResponse.json(
+    {
+      error: "Review creation moved to server actions. Use submitReviewAction.",
+    },
+    { status: 405 },
+  )
 }
