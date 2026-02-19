@@ -2,6 +2,8 @@ import prisma from "@/lib/db"
 import RoomList from "@/components/RoomList"
 import Hero from "@/components/Hero"
 
+export const revalidate = 300
+
 export default async function RoomsPage() {
   const roomTypes = await prisma.roomType.findMany()
 

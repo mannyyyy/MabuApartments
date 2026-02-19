@@ -3,6 +3,8 @@ import { ContactHero } from "@/components/ContactHero"
 import { ContactInfo } from "@/components/contact-info"
 import { ContactFormClient } from "@/components/contact/ContactFormClient"
 
+export const dynamic = "force-static"
+
 export default function ContactPage() {
   return (
     <main className="min-h-screen bg-gray-50">
