@@ -12,7 +12,7 @@
 - autonomy: `HITL`
 
 ## Current Pointer
-- active_scope_id: `E0_PHASE_E_KICKOFF`
+- active_scope_id: `E1_METADATA_AND_SEMANTIC_HTML_HARDENING`
 - active_status: `done`
 
 ## Iteration Log
@@ -23,3 +23,9 @@
 - gate_results: pass
 - next_scope_id: TBD
 - notes: Merged PR #26: chore: kick off phase e workflow
+
+
+### 2026-02-19T21:11:14Z | scope_id=E1_METADATA_AND_SEMANTIC_HTML_HARDENING | status=done
+- gate_results: pass
+- next_scope_id: TBD
+- notes: Merged PR #27: refactor: harden metadata and semantic page structure
