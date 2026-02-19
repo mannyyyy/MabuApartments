@@ -12,7 +12,7 @@
 - autonomy: `HITL`
 
 ## Current Pointer
-- active_scope_id: `E5_BOOKING_FORM_ID_UPLOAD_AND_TERMS_CONSENT`
+- active_scope_id: `E6_NON_RALPH_SCRIPT_RATIONALIZATION`
 - active_status: `done`
 
 ## Iteration Log
@@ -53,3 +53,9 @@
 - gate_results: pass
 - next_scope_id: TBD
 - notes: Merged PR #31: feat: expand booking form with ID upload, terms consent, and Paystack flow
+
+
+### 2026-02-19T23:50:08Z | scope_id=E6_NON_RALPH_SCRIPT_RATIONALIZATION | status=done
+- gate_results: pass
+- next_scope_id: TBD
+- notes: Merged PR #32: Feat/script rationalization non ralph
