@@ -12,8 +12,14 @@
 - autonomy: `HITL`
 
 ## Current Pointer
-- active_scope_id: `NONE`
-- active_status: `pending`
+- active_scope_id: `E0_PHASE_E_KICKOFF`
+- active_status: `done`
 
 ## Iteration Log
 <!-- Appended by scripts/ralph/record-progress.js -->
+
+
+### 2026-02-19T21:02:16Z | scope_id=E0_PHASE_E_KICKOFF | status=done
+- gate_results: pass
+- next_scope_id: TBD
+- notes: Merged PR #26: chore: kick off phase e workflow
