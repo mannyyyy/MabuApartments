@@ -1,0 +1,49 @@
+name: Payment Reconciliation
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Ensure DATABASE_URL is configured
+        id: database
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "DATABASE_URL secret is not configured; skipping reconciliation run."
+            echo "has_db=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_db=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        if: steps.database.outputs.has_db == 'true'
+        run: npm ci --ignore-scripts
+
+      - name: Generate Prisma client
+        if: steps.database.outputs.has_db == 'true'
+        run: npx prisma generate
+
+      - name: Run reconciliation gate
+        if: steps.database.outputs.has_db == 'true'
+        run: npm run payments:reconcile -- --window-days 14 --pending-timeout-hours 24 --fail-on-issue

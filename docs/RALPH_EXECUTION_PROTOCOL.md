@@ -45,6 +45,7 @@ npm run check:pr-template
 - `sync-pr-template.yml` auto-syncs template on `main` when phase-state/generator changes.
 - `record-progress-on-merge.yml` auto-records a `done` entry in the phase progress log when a PR is merged to `main` and contains `Scope ID` in the PR body.
 - `release-gates.yml` runs lint, typecheck, and tests for PRs targeting `main`.
+- `payment-reconciliation.yml` runs hourly on `main` (and on demand) to detect payment consistency issues.
 
 ## Progress Logging (Default)
 - Manual command:
@@ -69,6 +70,16 @@ npm run record:progress -- --scope-id B7_AVAILABILITY_SERVICE_EXTRACTION --statu
 - `phase_a_strict`: `lint`, `typecheck`, `build`
 - `phase_a_fast`: `lint`, `typecheck`
 - `payment_safety_smoke`: `lint`, `typecheck`, `build`, route presence checks
+
+## Payment Reconciliation
+- Manual run:
+```bash
+npm run payments:reconcile -- --window-days 14 --pending-timeout-hours 24
+```
+- Strict run (non-zero exit on issues):
+```bash
+npm run payments:reconcile -- --window-days 14 --pending-timeout-hours 24 --fail-on-issue
+```
 
 ## Current Limitation
 - `scripts/ralph/run-loop.sh` currently contains explicit A-scope logic (`A1` to `A4`).
