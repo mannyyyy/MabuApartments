@@ -12,7 +12,7 @@
 - autonomy: `HITL`
 
 ## Current Pointer
-- active_scope_id: `C1_SERVER_COMPONENT_BOUNDARY_AUDIT`
+- active_scope_id: `C2_CLIENT_LEAF_EXTRACTION`
 - active_status: `done`
 
 ## Iteration Log
@@ -23,3 +23,9 @@
 - gate_results: pass
 - next_scope_id: C2_CLIENT_LEAF_EXTRACTION
 - notes: Merged PR #13
+
+
+### 2026-02-19T13:32:58Z | scope_id=C2_CLIENT_LEAF_EXTRACTION | status=done
+- gate_results: pass
+- next_scope_id: C3_CACHE_STRATEGY_ALIGNMENT
+- notes: Merged PRs #15 and #16
