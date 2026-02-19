@@ -38,9 +38,9 @@ jobs:
           RAW_SCOPE_ID=$(sed -n 's/^[[:space:]]*-[[:space:]]*Scope ID:[[:space:]]*//Ip' "$BODY_FILE" | head -n1)
           SCOPE_ID=$(printf '%s' "$RAW_SCOPE_ID" | sed -E 's/^`(.*)`$/\1/' | tr -d '\r' | xargs)
           if [ -z "$SCOPE_ID" ]; then
+            echo "::error::No Scope ID found in merged PR body."
             echo "scope_id=" >> "$GITHUB_OUTPUT"
-            echo "No Scope ID found in PR body. Skipping progress update."
-            exit 0
+            exit 1
           fi
 
           echo "scope_id=$SCOPE_ID" >> "$GITHUB_OUTPUT"

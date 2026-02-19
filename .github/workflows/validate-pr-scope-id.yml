@@ -1,0 +1,66 @@
+name: Validate PR Scope ID
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate-scope-id:
+    if: github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Validate Scope ID in PR body
+        run: |
+          set -euo pipefail
+
+          BODY_FILE="$(mktemp)"
+          cat <<'EOF' > "$BODY_FILE"
+          ${{ github.event.pull_request.body }}
+          EOF
+
+          MATCH_COUNT=$(grep -Eic '^[[:space:]]*-[[:space:]]*Scope ID:' "$BODY_FILE" || true)
+          if [ "$MATCH_COUNT" -eq 0 ]; then
+            echo "::error::PR description is missing '- Scope ID: ...'."
+            echo "Update the PR description (not a comment) and include a valid Scope ID."
+            exit 1
+          fi
+          if [ "$MATCH_COUNT" -gt 1 ]; then
+            echo "::error::PR description contains multiple 'Scope ID' lines. Keep exactly one."
+            exit 1
+          fi
+
+          RAW_SCOPE_ID=$(sed -n 's/^[[:space:]]*-[[:space:]]*Scope ID:[[:space:]]*//Ip' "$BODY_FILE" | head -n1)
+          SCOPE_ID=$(printf '%s' "$RAW_SCOPE_ID" | sed -E 's/^`(.*)`$/\1/' | tr -d '\r' | xargs)
+
+          if [ -z "$SCOPE_ID" ]; then
+            echo "::error::Scope ID is empty."
+            exit 1
+          fi
+
+          SCOPE_PREFIX=$(sed -n 's/^scope_prefix:[[:space:]]*//p' .github/phase-state.yml | head -n1 | tr -d '"' | tr -d "'" | xargs)
+          if [ -z "$SCOPE_PREFIX" ]; then
+            echo "::error::Unable to read scope_prefix from .github/phase-state.yml."
+            exit 1
+          fi
+
+          if ! printf '%s' "$SCOPE_ID" | grep -Eq "^${SCOPE_PREFIX}[0-9]+_[A-Z0-9_]+$"; then
+            echo "::error::Scope ID '$SCOPE_ID' is invalid for scope_prefix '$SCOPE_PREFIX'."
+            echo "Expected format: ${SCOPE_PREFIX}<number>_<UPPER_SNAKE_CASE>"
+            exit 1
+          fi
+
+          echo "Scope ID validated: $SCOPE_ID"
