@@ -1,86 +1,25 @@
 import { NextResponse } from "next/server"
 import { sendBookingConfirmationEmail, sendManagerNotificationEmail } from "@/utils/email"
-import prisma from "@/lib/db"
+import { createBookingApiSchema } from "@/lib/validators/booking-api.schema"
+import {
+  createBookingWithRoom,
+  getRoomsOfTypeWithConflictingBookings,
+  updateAvailabilityForBookingRange,
+} from "@/services/booking.service"
 
 export async function POST(req: Request) {
   try {
-    const bookingData = await req.json()
+    const bookingData = createBookingApiSchema.parse(await req.json())
     console.log("Received booking data:", bookingData)
 
-    const { roomId, guestName, guestEmail, checkIn, checkOut, totalPrice, paymentReference } = bookingData
+    const { guestName, guestEmail, checkIn, checkOut } = bookingData
 
-    // Create the booking
-    const booking = await prisma.booking.create({
-      data: {
-        roomId,
-        guestName,
-        guestEmail,
-        checkIn: new Date(checkIn),
-        checkOut: new Date(checkOut),
-        totalPrice,
-        paymentStatus: "paid",
-        paymentReference,
-      },
-      include: {
-        room: {
-          include: {
-            roomType: true,
-          },
-        },
-      },
-    })
+    const booking = await createBookingWithRoom(bookingData)
 
     console.log("Booking created:", booking)
 
-    // Get all rooms of this type
-    const roomsOfType = await prisma.room.findMany({
-      where: {
-        roomTypeId: booking.room.roomTypeId,
-      },
-      include: {
-        bookings: {
-          where: {
-            OR: [
-              {
-                AND: [{ checkIn: { lte: new Date(checkIn) } }, { checkOut: { gt: new Date(checkIn) } }],
-              },
-              {
-                AND: [{ checkIn: { lt: new Date(checkOut) } }, { checkOut: { gte: new Date(checkOut) } }],
-              },
-            ],
-          },
-        },
-      },
-    })
-
-    // For each date in the booking range, check if all rooms are booked
-    const checkInDate = new Date(checkIn)
-    const checkOutDate = new Date(checkOut)
-
-    for (let date = new Date(checkInDate); date < checkOutDate; date.setDate(date.getTime() + 24 * 60 * 60 * 1000)) {
-      const currentDate = new Date(date)
-
-      // Count how many rooms are booked for this date
-      const bookedRoomsCount = roomsOfType.filter((room) =>
-        room.bookings.some((booking) => booking.checkIn <= currentDate && booking.checkOut > currentDate),
-      ).length
-
-      // Only mark the date as unavailable if ALL rooms are booked
-      const isAvailable = bookedRoomsCount < roomsOfType.length
-
-      // Update availability for this date
-      await prisma.availability.updateMany({
-        where: {
-          roomId: {
-            in: roomsOfType.map((room) => room.id),
-          },
-          date: currentDate,
-        },
-        data: {
-          isAvailable: isAvailable,
-        },
-      })
-    }
+    const roomsOfType = await getRoomsOfTypeWithConflictingBookings(booking.room.roomTypeId, checkIn, checkOut)
+    await updateAvailabilityForBookingRange(roomsOfType, checkIn, checkOut)
 
     console.log("Room availability updated")
 
