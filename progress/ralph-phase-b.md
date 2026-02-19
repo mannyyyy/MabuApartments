@@ -8,6 +8,7 @@
 - `B5_PHASE_AWARE_PR_TEMPLATE_AUTOMATION`
 - `B6_BOOKING_SERVICE_EXTRACTION`
 - `B7_AVAILABILITY_SERVICE_EXTRACTION`
+- `B8_PROGRESS_LOG_AUTOMATION`
 
 ## Defaults
 - max_files: `10`
@@ -15,7 +16,7 @@
 - autonomy: `HITL`
 
 ## Current Pointer
-- active_scope_id: `B7_AVAILABILITY_SERVICE_EXTRACTION`
+- active_scope_id: `B8_PROGRESS_LOG_AUTOMATION`
 - active_status: `done`
 
 ## Iteration Log
@@ -62,3 +63,9 @@
 - gate_results: pass
 - next_scope_id: TBD
 - notes: Merged PR #9
+
+
+### 2026-02-19T12:36:15Z | scope_id=B8_PROGRESS_LOG_AUTOMATION | status=done
+- gate_results: pass
+- next_scope_id: TBD
+- notes: Merged PR #10
