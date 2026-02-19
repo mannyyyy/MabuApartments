@@ -8,17 +8,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum BookingRequestPaymentStatus {
+  initiated
+  paid
+  failed
+  expired
+}
+
+enum GuestType {
+  NEW
+  RETURNING
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
 model RoomType {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  slug        String   @unique
-  description String
-  price       Float
-  capacity    Int
-  imageUrl    String
-  images      String[]
-  rooms       Room[]
-  roomCount   Int
+  id              String           @id @default(cuid())
+  name            String           @unique
+  slug            String           @unique
+  description     String
+  price           Float
+  capacity        Int
+  imageUrl        String
+  images          String[]
+  rooms           Room[]
+  bookingRequests BookingRequest[]
+  roomCount       Int
 }
 
 model Room {
@@ -32,18 +52,49 @@ model Room {
 }
 
 model Booking {
-  id               String   @id @default(cuid())
+  id               String          @id @default(cuid())
   roomId           String
-  room             Room     @relation(fields: [roomId], references: [id])
+  room             Room            @relation(fields: [roomId], references: [id])
   guestName        String
   guestEmail       String
   checkIn          DateTime
   checkOut         DateTime
   totalPrice       Float
   paymentStatus    String
-  paymentReference String?  
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  paymentReference String?         @unique
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  bookingRequest   BookingRequest?
+}
+
+model BookingRequest {
+  id                     String                      @id @default(cuid())
+  fullName               String
+  phoneNumber            String
+  email                  String
+  arrivalDate            DateTime
+  departureDate          DateTime
+  roomTypeId             String
+  roomType               RoomType                    @relation(fields: [roomTypeId], references: [id])
+  roomSpecification      String
+  heardAboutUs           String
+  guestType              GuestType
+  gender                 Gender
+  termsAccepted          Boolean
+  officialIdUrl          String
+  officialIdMimeType     String
+  officialIdOriginalName String
+  officialIdSizeBytes    Int
+  amountKobo             Int
+  paymentStatus          BookingRequestPaymentStatus @default(initiated)
+  paymentReference       String?                     @unique
+  bookingId              String?                     @unique
+  booking                Booking?                    @relation(fields: [bookingId], references: [id])
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
+
+  @@index([createdAt])
+  @@index([roomTypeId, arrivalDate, departureDate])
 }
 
 model Availability {
@@ -65,4 +116,3 @@ model Review {
   comment   String
   createdAt DateTime @default(now())
 }
-

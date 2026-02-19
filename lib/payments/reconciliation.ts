@@ -6,10 +6,20 @@ export type BookingPaymentSnapshot = {
   createdAt: Date
 }
 
+export type BookingRequestPaymentSnapshot = {
+  id: string
+  paymentStatus: string
+  paymentReference: string | null
+  bookingId: string | null
+  createdAt: Date
+}
+
 export type ReconciliationIssueCode =
   | "PAID_WITHOUT_REFERENCE"
   | "DUPLICATE_PAYMENT_REFERENCE"
   | "STALE_PENDING_PAYMENT"
+  | "PAID_REQUEST_WITHOUT_BOOKING"
+  | "STALE_INITIATED_REQUEST"
 
 export type ReconciliationIssue = {
   code: ReconciliationIssueCode
@@ -20,8 +30,10 @@ export type ReconciliationIssue = {
 
 export type ReconciliationSummary = {
   scannedBookings: number
+  scannedBookingRequests: number
   paidBookings: number
   pendingBookings: number
+  initiatedBookingRequests: number
   issueCount: number
 }
 
@@ -37,19 +49,27 @@ function normalizeStatus(value: string) {
   return value.trim().toLowerCase()
 }
 
+type AnalyzeOptions = {
+  now?: Date
+  pendingTimeoutHours?: number
+  bookingRequests?: BookingRequestPaymentSnapshot[]
+}
+
 export function analyzePaymentConsistency(
   bookings: BookingPaymentSnapshot[],
-  options: { now?: Date; pendingTimeoutHours?: number } = {},
+  options: AnalyzeOptions = {},
 ): ReconciliationResult {
   const now = options.now ?? new Date()
   const pendingTimeoutHours = options.pendingTimeoutHours ?? 24
+  const bookingRequests = options.bookingRequests ?? []
   const staleCutoff = now.getTime() - pendingTimeoutHours * 60 * 60 * 1000
 
   const issues: ReconciliationIssue[] = []
-  const referenceToBookings = new Map<string, string[]>()
+  const referenceToEntities = new Map<string, string[]>()
 
   let paidBookings = 0
   let pendingBookings = 0
+  let initiatedBookingRequests = 0
 
   for (const booking of bookings) {
     const status = normalizeStatus(booking.paymentStatus)
@@ -78,18 +98,48 @@ export function analyzePaymentConsistency(
     }
 
     if (reference) {
-      const existing = referenceToBookings.get(reference) ?? []
-      existing.push(booking.id)
-      referenceToBookings.set(reference, existing)
+      const existing = referenceToEntities.get(reference) ?? []
+      existing.push(`booking:${booking.id}`)
+      referenceToEntities.set(reference, existing)
     }
   }
 
-  for (const [reference, bookingIds] of referenceToBookings) {
-    if (bookingIds.length > 1) {
+  for (const request of bookingRequests) {
+    const status = normalizeStatus(request.paymentStatus)
+    const reference = request.paymentReference?.trim() ?? ""
+
+    if (status === "initiated") {
+      initiatedBookingRequests += 1
+      if (request.createdAt.getTime() < staleCutoff) {
+        issues.push({
+          code: "STALE_INITIATED_REQUEST",
+          message: `Booking request ${request.id} is stale in initiated state older than ${pendingTimeoutHours}h.`,
+          bookingIds: [request.id],
+        })
+      }
+    }
+
+    if (status === "paid" && !request.bookingId) {
+      issues.push({
+        code: "PAID_REQUEST_WITHOUT_BOOKING",
+        message: `Booking request ${request.id} is paid but is not linked to a booking.`,
+        bookingIds: [request.id],
+      })
+    }
+
+    if (reference) {
+      const existing = referenceToEntities.get(reference) ?? []
+      existing.push(`request:${request.id}`)
+      referenceToEntities.set(reference, existing)
+    }
+  }
+
+  for (const [reference, entities] of referenceToEntities) {
+    if (entities.length > 1) {
       issues.push({
         code: "DUPLICATE_PAYMENT_REFERENCE",
-        message: `Payment reference ${reference} is used by multiple bookings.`,
-        bookingIds,
+        message: `Payment reference ${reference} is used by multiple records.`,
+        bookingIds: entities,
         paymentReference: reference,
       })
     }
@@ -98,8 +148,10 @@ export function analyzePaymentConsistency(
   return {
     summary: {
       scannedBookings: bookings.length,
+      scannedBookingRequests: bookingRequests.length,
       paidBookings,
       pendingBookings,
+      initiatedBookingRequests,
       issueCount: issues.length,
     },
     issues,
@@ -110,8 +162,10 @@ export function formatReconciliationReport(result: ReconciliationResult) {
   const lines = [
     "Payment Reconciliation Report",
     `Scanned bookings: ${result.summary.scannedBookings}`,
+    `Scanned booking requests: ${result.summary.scannedBookingRequests}`,
     `Paid bookings: ${result.summary.paidBookings}`,
     `Pending bookings: ${result.summary.pendingBookings}`,
+    `Initiated booking requests: ${result.summary.initiatedBookingRequests}`,
     `Issues found: ${result.summary.issueCount}`,
   ]
 
@@ -122,7 +176,7 @@ export function formatReconciliationReport(result: ReconciliationResult) {
 
   for (const issue of result.issues) {
     const referencePart = issue.paymentReference ? ` | ref=${issue.paymentReference}` : ""
-    lines.push(`[${issue.code}] ${issue.message}${referencePart} | bookings=${issue.bookingIds.join(",")}`)
+    lines.push(`[${issue.code}] ${issue.message}${referencePart} | records=${issue.bookingIds.join(",")}`)
   }
 
   return lines.join("\n")

@@ -1,81 +1,42 @@
-import { NextResponse } from 'next/server'
-import https from 'https'
+import { NextResponse } from "next/server"
+import prisma from "@/lib/db"
+import { verifyPaystackTransaction } from "@/lib/payments/paystack"
 
 export async function GET(req: Request): Promise<Response> {
   try {
     const url = new URL(req.url)
-    const reference = url.searchParams.get('reference')
-    console.log('Received reference:', reference)
+    const reference = url.searchParams.get("reference")
 
     if (!reference) {
-      return NextResponse.json({ status: 'error', message: 'Missing reference parameter' }, { status: 400 })
+      return NextResponse.json({ status: "error", message: "Missing reference parameter" }, { status: 400 })
     }
 
-    const options = {
-      hostname: 'api.paystack.co',
-      port: 443,
-      path: `/transaction/verify/${reference}`,
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+    const data = await verifyPaystackTransaction(reference)
+
+    const booking = await prisma.booking.findUnique({
+      where: { paymentReference: reference },
+      select: { id: true },
+    })
+
+    const bookingRequest = await prisma.bookingRequest.findUnique({
+      where: { paymentReference: reference },
+      select: {
+        id: true,
+        paymentStatus: true,
+        bookingId: true,
       },
-    }
+    })
 
-    return await new Promise<Response>((resolve) => {
-      const reqPaystack = https.request(options, (res) => {
-        let data = ''
-
-        res.on('data', (chunk) => {
-          data += chunk
-        })
-
-        res.on('end', () => {
-          try {
-            const response = JSON.parse(data)
-            console.log('Paystack response:', response)
-            if (response.status && response.data.status === 'success') {
-              resolve(
-                NextResponse.json({
-                  status: 'success',
-                  reference: response.data.reference,
-                  amount: response.data.amount,
-                  paidAt: response.data.paid_at,
-                  metadata: response.data.metadata,
-                  customer: response.data.customer,
-                })
-              )
-            } else {
-              console.error('Paystack error:', response.message)
-              resolve(
-                NextResponse.json({ status: 'error', message: response.message }, { status: 400 })
-              )
-            }
-          } catch (error) {
-            console.error('Error parsing Paystack response:', error)
-            resolve(
-              NextResponse.json(
-                { status: 'error', message: 'Error processing payment verification' },
-                { status: 500 }
-              )
-            )
-          }
-        })
-      })
-
-      reqPaystack.on('error', (error) => {
-        console.error('Request error:', error)
-        resolve(
-          NextResponse.json(
-            { status: 'error', message: 'An error occurred while verifying the transaction' },
-            { status: 500 }
-          )
-        )
-      })
-
-      reqPaystack.end()
+    return NextResponse.json({
+      status: "success",
+      reference: data.reference,
+      amount: data.amount,
+      paidAt: data.paid_at,
+      bookingConfirmed: Boolean(booking?.id || bookingRequest?.bookingId),
+      bookingRequestStatus: bookingRequest?.paymentStatus ?? null,
     })
   } catch (error) {
-    console.error('Unexpected error:', error)
-    return NextResponse.json({ status: 'error', message: 'An unexpected error occurred' }, { status: 500 })
+    console.error("Error verifying payment", error)
+    return NextResponse.json({ status: "error", message: "Error processing payment verification" }, { status: 500 })
   }
 }

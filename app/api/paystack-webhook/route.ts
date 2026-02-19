@@ -1,101 +1,104 @@
-import { NextResponse } from 'next/server'
-import crypto from 'crypto'
-import prisma from '@/lib/db'
+import { NextResponse } from "next/server"
+import crypto from "crypto"
+import { Prisma } from "@prisma/client"
 import { createBookingAction } from "@/app/actions/bookings"
+import { findAvailableRoom } from "@/services/availability.service"
+import {
+  getBookingRequestByIdOrReference,
+  markBookingRequestAsPaid,
+} from "@/services/booking-request.service"
 
-export async function POST(req: Request) {
-  try {
-    console.log('Webhook received')
-    const body = await req.text()
-    console.log('Webhook body:', body)
-
-    const hash = crypto
-      .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY!)
-      .update(body)
-      .digest('hex')
-
-    if (hash !== req.headers.get('x-paystack-signature')) {
-      console.error('Invalid signature')
-      return NextResponse.json({ message: 'Invalid signature' }, { status: 400 })
-    }
-
-    const event = JSON.parse(body)
-    console.log('Event type:', event.event)
-
-    // Handle the event
-    if (event.event === 'charge.success') {
-      const { metadata, amount, customer, reference } = event.data
-      console.log('Payment successful. Metadata:', metadata)
-      
-      // Final availability check
-      const availableRoom = await findAvailableRoom(
-        metadata.roomId,
-        new Date(metadata.checkIn),
-        new Date(metadata.checkOut)
-      )
-
-      if (!availableRoom) {
-        console.error('Room no longer available')
-        // Here you might want to implement a refund process
-        return NextResponse.json({ message: 'Room no longer available' }, { status: 400 })
-      }
-
-      console.log('Room still available:', availableRoom)
-
-      try {
-        console.log('Creating booking with data:', {
-          roomId: availableRoom.id,
-          guestName: metadata.name,
-          guestEmail: customer.email,
-          checkIn: metadata.checkIn,
-          checkOut: metadata.checkOut,
-          totalPrice: amount / 100,
-          paymentReference: reference,
-        })
-
-        const result = await createBookingAction({
-          roomId: availableRoom.id,
-          guestName: metadata.name,
-          guestEmail: customer.email,
-          checkIn: metadata.checkIn,
-          checkOut: metadata.checkOut,
-          totalPrice: amount / 100,
-          paymentReference: reference,
-        })
-        console.log('Booking created:', result.booking)
-      } catch (error) {
-        console.error('Error creating booking:', error)
-        return NextResponse.json({ message: 'Error creating booking' }, { status: 500 })
-      }
-    }
-
-    return NextResponse.json({ received: true })
-  } catch (error) {
-    console.error('Error processing webhook:', error)
-    return NextResponse.json({ message: 'Webhook error' }, { status: 500 })
+type ChargeSuccessPayload = {
+  event: string
+  data?: {
+    metadata?: Record<string, unknown>
+    reference?: string
   }
 }
 
-async function findAvailableRoom(roomId: string, checkIn: Date, checkOut: Date) {
-  console.log('Finding available room for:', { roomId, checkIn, checkOut })
-  const room = await prisma.room.findFirst({
-    where: {
-      id: roomId,
-      availability: {
-        every: {
-          AND: [
-            {
-              date: {
-                gte: checkIn,
-                lt: checkOut,
-              },
-            },
-            { isAvailable: true },
-          ],
-        },
-      },
-    },
-  })
-  console.log('Available room found:', room)
-  return room
+function signatureMatches(payload: string, signature: string | null) {
+  const secret = process.env.PAYSTACK_SECRET_KEY
+  if (!secret || !signature) {
+    return false
+  }
+
+  const hash = crypto.createHmac("sha512", secret).update(payload).digest("hex")
+  return hash === signature
+}
+
+function readBookingRequestId(metadata: Record<string, unknown> | undefined) {
+  if (!metadata) return null
+  const value = metadata.bookingRequestId
+  return typeof value === "string" && value.trim().length > 0 ? value : null
+}
+
+export async function POST(req: Request) {
+  try {
+    const rawBody = await req.text()
+    const signature = req.headers.get("x-paystack-signature")
+
+    if (!signatureMatches(rawBody, signature)) {
+      return NextResponse.json({ message: "Invalid signature" }, { status: 400 })
+    }
+
+    const event = JSON.parse(rawBody) as ChargeSuccessPayload
+    if (event.event !== "charge.success" || !event.data?.reference) {
+      return NextResponse.json({ received: true })
+    }
+
+    const paymentReference = event.data.reference
+    const bookingRequestId = readBookingRequestId(event.data.metadata)
+    const bookingRequest = await getBookingRequestByIdOrReference(bookingRequestId, paymentReference)
+
+    if (!bookingRequest) {
+      console.error("No booking request found for webhook reference", paymentReference)
+      return NextResponse.json({ message: "Booking request not found" }, { status: 404 })
+    }
+
+    if (bookingRequest.paymentStatus === "paid" && bookingRequest.bookingId) {
+      return NextResponse.json({ received: true, deduped: true })
+    }
+
+    const availableRoom = await findAvailableRoom({
+      roomTypeId: bookingRequest.roomTypeId,
+      checkIn: bookingRequest.arrivalDate.toISOString(),
+      checkOut: bookingRequest.departureDate.toISOString(),
+    })
+
+    if (!availableRoom) {
+      return NextResponse.json({ message: "Room no longer available" }, { status: 409 })
+    }
+
+    const bookingResult = await createBookingAction({
+      roomId: availableRoom.id,
+      guestName: bookingRequest.fullName,
+      guestEmail: bookingRequest.email,
+      checkIn: bookingRequest.arrivalDate.toISOString(),
+      checkOut: bookingRequest.departureDate.toISOString(),
+      totalPrice: bookingRequest.amountKobo / 100,
+      paymentReference,
+    })
+
+    if (!bookingResult.success || !bookingResult.booking) {
+      return NextResponse.json({ message: "Unable to create booking" }, { status: 500 })
+    }
+
+    await markBookingRequestAsPaid({
+      bookingRequestId: bookingRequest.id,
+      paymentReference,
+      bookingId: bookingResult.booking.id,
+    })
+
+    return NextResponse.json({ received: true, bookingId: bookingResult.booking.id })
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json({ received: true, deduped: true })
+    }
+
+    console.error("Error processing webhook:", error)
+    return NextResponse.json({ message: "Webhook error" }, { status: 500 })
+  }
 }
