@@ -7,6 +7,8 @@ import { RoomDescription } from "@/components/room-description"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import prisma from "@/lib/db"
 
+export const revalidate = 300
+
 export async function generateStaticParams() {
   const roomTypes = await prisma.roomType.findMany()
   return roomTypes.map((room) => ({

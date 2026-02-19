@@ -4,6 +4,8 @@ import { LocationSection } from "@/components/LocationSection"
 import { MainFacilities } from "@/components/MainFacilities"
 import { FAQ } from "@/components/faq"
 
+export const dynamic = "force-static"
+
 export default function AboutPage() {
   return (
     <div className="bg-[#faf9f6]">
