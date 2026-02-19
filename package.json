@@ -7,6 +7,8 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test -r ts-node/register test/**/*.test.ts",
     "seed": "ts-node prisma/seed.ts",
     "update-prices": "node scripts/update-prices.js",
     "check-database": "node scripts/check-database.js",

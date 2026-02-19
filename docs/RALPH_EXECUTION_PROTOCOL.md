@@ -44,6 +44,7 @@ npm run check:pr-template
 - `validate-pr-scope-id.yml` fails PRs when PR description is missing/invalid `Scope ID` for the active `scope_prefix`.
 - `sync-pr-template.yml` auto-syncs template on `main` when phase-state/generator changes.
 - `record-progress-on-merge.yml` auto-records a `done` entry in the phase progress log when a PR is merged to `main` and contains `Scope ID` in the PR body.
+- `release-gates.yml` runs lint, typecheck, and tests for PRs targeting `main`.
 
 ## Progress Logging (Default)
 - Manual command:
