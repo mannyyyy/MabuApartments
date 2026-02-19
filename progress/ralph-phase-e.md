@@ -12,7 +12,7 @@
 - autonomy: `HITL`
 
 ## Current Pointer
-- active_scope_id: `E2_SECURITY_CONTROLS_BASELINE`
+- active_scope_id: `E3_TEST_AND_CI_RELEASE_GATES`
 - active_status: `done`
 
 ## Iteration Log
@@ -35,3 +35,9 @@
 - gate_results: pass
 - next_scope_id: TBD
 - notes: Merged PR #28: feat: harden api validation, sanitization, and error shaping
+
+
+### 2026-02-19T21:49:46Z | scope_id=E3_TEST_AND_CI_RELEASE_GATES | status=done
+- gate_results: pass
+- next_scope_id: TBD
+- notes: Merged PR #29: feat: add release gate workflow and baseline tests
