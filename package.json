@@ -19,7 +19,7 @@
     "generate:pr-template": "node scripts/ralph/generate-pr-template.js",
     "check:pr-template": "node scripts/ralph/generate-pr-template.js --check",
     "record:progress": "node scripts/ralph/record-progress.js",
-    "postinstall": "prisma generate && prisma db push"
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
