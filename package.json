@@ -15,6 +15,7 @@
     "clear-db": "node scripts/clear-database.js",
     "generate:pr-template": "node scripts/ralph/generate-pr-template.js",
     "check:pr-template": "node scripts/ralph/generate-pr-template.js --check",
+    "record:progress": "node scripts/ralph/record-progress.js",
     "postinstall": "prisma generate && prisma db push"
   },
   "dependencies": {

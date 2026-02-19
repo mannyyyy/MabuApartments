@@ -42,6 +42,15 @@ npm run check:pr-template
 ### CI
 - `validate-pr-template.yml` fails PRs when `.github/PULL_REQUEST_TEMPLATE.md` is stale relative to `.github/phase-state.yml`.
 - `sync-pr-template.yml` auto-syncs template on `main` when phase-state/generator changes.
+- `record-progress-on-merge.yml` auto-records a `done` entry in the phase progress log when a PR is merged to `main` and contains `Scope ID` in the PR body.
+
+## Progress Logging (Default)
+- Manual command:
+```bash
+npm run record:progress -- --scope-id B7_AVAILABILITY_SERVICE_EXTRACTION --status done --gate-results pass --next-scope-id TBD --notes "Merged PR #9"
+```
+- Default automation:
+  PR merge to `main` triggers automatic progress-log updates via `.github/workflows/record-progress-on-merge.yml`.
 
 ## Phase Change Procedure
 1. Update `.github/phase-state.yml`:
