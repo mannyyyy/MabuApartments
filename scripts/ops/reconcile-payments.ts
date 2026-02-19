@@ -1,7 +1,7 @@
 #!/usr/bin/env ts-node
 import "dotenv/config"
-import { formatReconciliationReport } from "../lib/payments/reconciliation"
-import { runPaymentReconciliation } from "../services/payment-reconciliation.service"
+import { formatReconciliationReport } from "../../lib/payments/reconciliation"
+import { runPaymentReconciliation } from "../../services/payment-reconciliation.service"
 
 function readArgNumber(name: string, fallback: number) {
   const index = process.argv.indexOf(name)
