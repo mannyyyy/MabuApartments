@@ -1,54 +1,20 @@
 import { NextResponse } from "next/server"
-import { startOfDay, endOfDay } from "date-fns"
-import prisma from "@/lib/db"
+import { unavailableDatesQuerySchema } from "@/lib/validators/availability.schema"
+import { getUnavailableDatesForRoomType } from "@/services/availability.service"
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
-  const roomTypeId = searchParams.get("roomTypeId")
+  const roomTypeId = searchParams.get("roomTypeId") ?? ""
 
-  if (!roomTypeId) {
+  const parsedQuery = unavailableDatesQuerySchema.safeParse({ roomTypeId })
+  if (!parsedQuery.success) {
     return NextResponse.json({ error: "Room Type ID is required" }, { status: 400 })
   }
 
   try {
-    // Get all rooms of this type
-    const rooms = await prisma.room.findMany({
-      where: {
-        roomTypeId: roomTypeId,
-      },
-      include: {
-        bookings: {
-          where: {
-            checkOut: {
-              gte: startOfDay(new Date()),
-            },
-          },
-        },
-      },
-    })
-
-    const totalRooms = rooms.length
-    const unavailableDates = new Set<string>()
-
-    // For each day in the next year
-    for (
-      let date = startOfDay(new Date());
-      date <= endOfDay(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000));
-      date = new Date(date.getTime() + 24 * 60 * 60 * 1000)
-    ) {
-      // Count how many rooms are booked for this date
-      const bookedRoomsCount = rooms.filter((room) =>
-        room.bookings.some((booking) => date >= startOfDay(booking.checkIn) && date < endOfDay(booking.checkOut)),
-      ).length
-
-      // If all rooms are booked for this date, add it to unavailable dates
-      if (bookedRoomsCount >= totalRooms) {
-        unavailableDates.add(date.toISOString().split("T")[0])
-      }
-    }
-
+    const unavailableDates = await getUnavailableDatesForRoomType(parsedQuery.data.roomTypeId)
     return NextResponse.json({
-      unavailableDates: Array.from(unavailableDates).map((date) => new Date(date)),
+      unavailableDates,
     })
   } catch (error) {
     console.error("Error fetching unavailable dates:", error)
