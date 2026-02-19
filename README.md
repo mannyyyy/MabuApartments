@@ -272,7 +272,6 @@ mabu-apartments/
 │   │   ├── check-availabilities.js
 │   │   ├── clear-database.js
 │   │   └── reconcile-payments.ts
-│   ├── legacy/             # Archived one-off scripts
 │   └── README.md
 │
 ├── docs/                    # Documentation (newly created)

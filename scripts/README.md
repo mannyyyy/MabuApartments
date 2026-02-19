@@ -3,7 +3,6 @@
 This folder is split into:
 
 - `scripts/ops/`: supported operational scripts.
-- `scripts/legacy/`: archived one-off scripts (not part of normal operations).
 - `scripts/ralph/`: Ralph workflow automation (managed separately).
 
 ## Supported Ops Scripts
@@ -31,13 +30,3 @@ This folder is split into:
     - `ALLOW_DB_DESTRUCTIVE=true`
     - `TARGET_ENV=development|staging|test`
     - interactive confirmation and typed phrase.
-
-## Legacy Scripts
-
-Legacy scripts are kept for reference and emergency/manual use only:
-
-- `scripts/legacy/check-room-counts.js`
-- `scripts/legacy/fix-availability.js`
-- `scripts/legacy/update-room-units.js`
-
-They are intentionally not wired into `package.json`.
