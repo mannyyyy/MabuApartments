@@ -36,7 +36,7 @@ jobs:
           EOF
 
           RAW_SCOPE_ID=$(sed -n 's/^[[:space:]]*-[[:space:]]*Scope ID:[[:space:]]*//Ip' "$BODY_FILE" | head -n1)
-          SCOPE_ID=$(printf '%s' "$RAW_SCOPE_ID" | sed -E 's/^`(.*)`$/\1/' | tr -d '\r' | xargs)
+          SCOPE_ID=$(printf '%s' "$RAW_SCOPE_ID" | tr -d '\r' | tr '[:lower:]' '[:upper:]' | grep -Eo '[A-Z][0-9]+_[A-Z0-9_]+' | head -n1 || true)
           if [ -z "$SCOPE_ID" ]; then
             echo "::error::No Scope ID found in merged PR body."
             echo "scope_id=" >> "$GITHUB_OUTPUT"
