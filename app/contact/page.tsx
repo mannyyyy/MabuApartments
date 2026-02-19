@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { MapPin } from "lucide-react"
 import { ContactHero } from "@/components/ContactHero"
 import { ContactInfo } from "@/components/contact-info"
@@ -5,9 +6,14 @@ import { ContactFormClient } from "@/components/contact/ContactFormClient"
 
 export const dynamic = "force-static"
 
+export const metadata: Metadata = {
+  title: "Contact",
+  description: "Contact Mabu Apartments for booking support, directions, and inquiries.",
+}
+
 export default function ContactPage() {
   return (
-    <main className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <ContactHero />
 
       <div className="container mx-auto px-4 py-16 bg-[#faf9f6]">
@@ -27,6 +33,7 @@ export default function ContactPage() {
 
       <div className="relative h-[600px] w-full mt-16">
         <iframe
+          title="Map to Mabu Apartments"
           src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3940.0730918829946!2d7.449722115427616!3d9.072901193488901!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x104e0ba1305b2a6d%3A0x1c5ea49d6d3f0f5b!2sMabu%20Apartments!5e0!3m2!1sen!2sng!4v1651234567890!5m2!1sen!2sng"
           width="100%"
           height="100%"
@@ -48,6 +55,6 @@ export default function ContactPage() {
           </div>
         </a>
       </div>
-    </main>
+    </div>
   )
 }
