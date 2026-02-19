@@ -12,7 +12,7 @@
 - autonomy: `HITL`
 
 ## Current Pointer
-- active_scope_id: `D1_BOOKING_MUTATION_PATH_MIGRATION`
+- active_scope_id: `D2_REVIEWS_MUTATION_PATH_MIGRATION`
 - active_status: `done`
 
 ## Iteration Log
@@ -29,3 +29,9 @@
 - gate_results: pass
 - next_scope_id: TBD
 - notes: Merged PR #22: refactor: route booking mutations through server actions
+
+
+### 2026-02-19T15:01:41Z | scope_id=D2_REVIEWS_MUTATION_PATH_MIGRATION | status=done
+- gate_results: pass
+- next_scope_id: TBD
+- notes: Merged PR #23: refactor: route review mutation through server action
