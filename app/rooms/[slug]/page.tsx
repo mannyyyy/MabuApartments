@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import { RoomCarousel } from "@/components/room-carousel"
-import { Reviews } from "@/components/reviews"
+import { Reviews } from "@/components/reviews/Reviews"
 import { BookingForm } from "@/components/booking/BookingForm"
 import { Hero } from "@/components/ApartmentHero"
 import { RoomDescription } from "@/components/room-description"
