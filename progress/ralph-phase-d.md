@@ -12,7 +12,7 @@
 - autonomy: `HITL`
 
 ## Current Pointer
-- active_scope_id: `D0_PHASE_D_KICKOFF`
+- active_scope_id: `D1_BOOKING_MUTATION_PATH_MIGRATION`
 - active_status: `done`
 
 ## Iteration Log
@@ -23,3 +23,9 @@
 - gate_results: pass
 - next_scope_id: TBD
 - notes: Merged PR #21: chore: kick off phase d workflow
+
+
+### 2026-02-19T14:46:56Z | scope_id=D1_BOOKING_MUTATION_PATH_MIGRATION | status=done
+- gate_results: pass
+- next_scope_id: TBD
+- notes: Merged PR #22: refactor: route booking mutations through server actions
