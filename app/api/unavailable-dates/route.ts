@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
-import { PrismaClient } from "@prisma/client"
 import { startOfDay, endOfDay } from "date-fns"
-
-const prisma = new PrismaClient()
+import prisma from "@/lib/db"
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -57,4 +55,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Failed to fetch unavailable dates" }, { status: 500 })
   }
 }
-

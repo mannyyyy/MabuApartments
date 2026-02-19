@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import prisma from '@/lib/db'
 
 export async function POST(req: Request) {
   try {
@@ -113,4 +111,3 @@ async function findAvailableRoom(roomId: string, checkIn: Date, checkOut: Date) 
   console.log('Available room found:', room)
   return room
 }
-

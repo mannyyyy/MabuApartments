@@ -2,7 +2,7 @@ import { Suspense } from "react"
 import { RoomCarousel } from "@/components/room-carousel"
 import { Reviews } from "@/components/reviews"
 import { BookingForm } from "@/components/booking-form"
-import { Hero } from "@/components/apartment-hero"
+import { Hero } from "@/components/ApartmentHero"
 import { RoomDescription } from "@/components/room-description"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import prisma from "@/lib/db"
@@ -65,4 +65,3 @@ export default async function RoomPage({ params }: PageProps) {
     </Suspense>
   )
 }
-

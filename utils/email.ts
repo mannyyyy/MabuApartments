@@ -1,8 +1,6 @@
 import nodemailer from "nodemailer"
 import { format } from "date-fns"
-import { PrismaClient } from "@prisma/client"
-
-const prisma = new PrismaClient()
+import prisma from "@/lib/db"
 
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
@@ -365,4 +363,3 @@ export async function sendContactFormEmail(formData: any) {
 
   await transporter.sendMail(mailOptions)
 }
-

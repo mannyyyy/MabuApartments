@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import prisma from '@/lib/db'
 
 export async function GET() {
   try {
@@ -25,4 +23,3 @@ export async function GET() {
     return NextResponse.json({ message: 'Error fetching bookings' }, { status: 500 })
   }
 }
-

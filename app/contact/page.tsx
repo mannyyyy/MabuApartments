@@ -14,7 +14,7 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form"
-import { ContactHero } from '@/components/contact-hero'
+import { ContactHero } from '@/components/ContactHero'
 import { ContactInfo } from '@/components/contact-info'
 import { MapPin } from 'lucide-react'
 
@@ -185,4 +185,3 @@ export default function ContactPage() {
     </main>
   )
 }
-

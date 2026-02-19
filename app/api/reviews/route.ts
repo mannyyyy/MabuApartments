@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import prisma from '@/lib/db'
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -58,4 +56,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Failed to create review' }, { status: 500 })
   }
 }
-

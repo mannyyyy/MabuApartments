@@ -1,8 +1,6 @@
-import { PrismaClient } from "@prisma/client"
-import RoomList from "@/components/room-list"
-import Hero from "@/components/hero"
-
-const prisma = new PrismaClient()
+import prisma from "@/lib/db"
+import RoomList from "@/components/RoomList"
+import Hero from "@/components/Hero"
 
 export default async function RoomsPage() {
   const roomTypes = await prisma.roomType.findMany()
@@ -17,4 +15,3 @@ export default async function RoomsPage() {
     </div>
   )
 }
-
