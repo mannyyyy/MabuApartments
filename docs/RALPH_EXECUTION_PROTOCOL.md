@@ -41,6 +41,7 @@ npm run check:pr-template
 
 ### CI
 - `validate-pr-template.yml` fails PRs when `.github/PULL_REQUEST_TEMPLATE.md` is stale relative to `.github/phase-state.yml`.
+- `validate-pr-scope-id.yml` fails PRs when PR description is missing/invalid `Scope ID` for the active `scope_prefix`.
 - `sync-pr-template.yml` auto-syncs template on `main` when phase-state/generator changes.
 - `record-progress-on-merge.yml` auto-records a `done` entry in the phase progress log when a PR is merged to `main` and contains `Scope ID` in the PR body.
 
@@ -51,6 +52,7 @@ npm run record:progress -- --scope-id B7_AVAILABILITY_SERVICE_EXTRACTION --statu
 ```
 - Default automation:
   PR merge to `main` triggers automatic progress-log updates via `.github/workflows/record-progress-on-merge.yml`.
+  If `Scope ID` is missing, the workflow now fails explicitly instead of silently skipping.
 
 ## Phase Change Procedure
 1. Update `.github/phase-state.yml`:
