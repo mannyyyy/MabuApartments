@@ -1,8 +1,8 @@
-current_phase: C
-scope_prefix: C
+current_phase: D
+scope_prefix: D
 max_changed_files: 10
 enforce_payment_guard: true
-phase_progress_log: progress/ralph-phase-c.md
+phase_progress_log: progress/ralph-phase-d.md
 payment_guard_files:
   - app/api/create-payment/route.ts
   - app/api/verify-payment/route.ts
