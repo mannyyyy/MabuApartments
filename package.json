@@ -13,6 +13,8 @@
     "check-bookings": "node scripts/check-bookings.js",
     "check-availabilities": "node scripts/check-availabilities.js",
     "clear-db": "node scripts/clear-database.js",
+    "generate:pr-template": "node scripts/ralph/generate-pr-template.js",
+    "check:pr-template": "node scripts/ralph/generate-pr-template.js --check",
     "postinstall": "prisma generate && prisma db push"
   },
   "dependencies": {
