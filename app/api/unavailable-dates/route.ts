@@ -1,19 +1,22 @@
-import { NextResponse } from "next/server"
-import { ZodError } from "zod"
+import { unavailableDatesQuerySchema } from "@/lib/validators/availability.schema"
 import { getUnavailableDatesAction } from "@/app/actions/availability"
+import { fail, ok } from "@/lib/api/response"
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
-  const roomTypeId = searchParams.get("roomTypeId")
+  const parsedQuery = unavailableDatesQuerySchema.safeParse({
+    roomTypeId: searchParams.get("roomTypeId") ?? "",
+  })
+
+  if (!parsedQuery.success) {
+    return fail("Room Type ID is required", 400, "VALIDATION_ERROR", parsedQuery.error.flatten())
+  }
 
   try {
-    const result = await getUnavailableDatesAction({ roomTypeId })
-    return NextResponse.json(result)
+    const result = await getUnavailableDatesAction(parsedQuery.data)
+    return ok(result)
   } catch (error) {
-    if (error instanceof ZodError) {
-      return NextResponse.json({ error: "Room Type ID is required" }, { status: 400 })
-    }
     console.error("Error fetching unavailable dates:", error)
-    return NextResponse.json({ error: "Failed to fetch unavailable dates" }, { status: 500 })
+    return fail("Failed to fetch unavailable dates")
   }
 }
