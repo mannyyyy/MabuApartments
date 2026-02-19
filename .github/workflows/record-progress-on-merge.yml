@@ -1,0 +1,70 @@
+name: Record Progress On Merge
+
+on:
+  pull_request:
+    types:
+      - closed
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  record-progress:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Extract scope ID from PR body
+        id: scope
+        run: |
+          BODY_FILE="$(mktemp)"
+          cat <<'EOF' > "$BODY_FILE"
+          ${{ github.event.pull_request.body }}
+          EOF
+
+          RAW_SCOPE_ID=$(sed -n 's/^[[:space:]]*-[[:space:]]*Scope ID:[[:space:]]*//Ip' "$BODY_FILE" | head -n1)
+          SCOPE_ID=$(printf '%s' "$RAW_SCOPE_ID" | sed -E 's/^`(.*)`$/\1/' | tr -d '\r' | xargs)
+          if [ -z "$SCOPE_ID" ]; then
+            echo "scope_id=" >> "$GITHUB_OUTPUT"
+            echo "No Scope ID found in PR body. Skipping progress update."
+            exit 0
+          fi
+
+          echo "scope_id=$SCOPE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Record done entry
+        if: steps.scope.outputs.scope_id != ''
+        run: |
+          npm run record:progress -- \
+            --scope-id "${{ steps.scope.outputs.scope_id }}" \
+            --status done \
+            --gate-results pass \
+            --next-scope-id TBD \
+            --notes "Merged PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+
+      - name: Commit and push if changed
+        if: steps.scope.outputs.scope_id != ''
+        run: |
+          if git diff --quiet -- progress/; then
+            echo "No progress log changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add progress/
+          git commit -m "chore: record progress for ${{ steps.scope.outputs.scope_id }} (PR #${{ github.event.pull_request.number }})"
+          git push origin main
