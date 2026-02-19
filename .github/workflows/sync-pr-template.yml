@@ -1,0 +1,46 @@
+name: Sync PR Template
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/phase-state.yml
+      - scripts/ralph/generate-pr-template.js
+      - package.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-template:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Generate PR template
+        run: npm run generate:pr-template
+
+      - name: Commit and push if changed
+        run: |
+          if git diff --quiet -- .github/PULL_REQUEST_TEMPLATE.md; then
+            echo "No PR template changes to commit."
+            exit 0
+          fi
+
+          PHASE=$(grep '^current_phase:' .github/phase-state.yml | awk '{print $2}')
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/PULL_REQUEST_TEMPLATE.md
+          git commit -m "chore: sync PR template for phase ${PHASE}"
+          git push origin main
+

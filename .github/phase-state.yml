@@ -1,0 +1,10 @@
+current_phase: B
+scope_prefix: B
+max_changed_files: 10
+enforce_payment_guard: true
+phase_progress_log: progress/ralph-phase-b.md
+payment_guard_files:
+  - app/api/create-payment/route.ts
+  - app/api/verify-payment/route.ts
+  - app/api/paystack-webhook/route.ts
+

@@ -232,5 +232,7 @@ Refactor the app into a production-safe Next.js App Router architecture without 
 ## 11) Execution Protocol
 
 - Use `docs/RALPH_EXECUTION_PROTOCOL.md` for loop orchestration and gate policy.
+- Use `.github/phase-state.yml` as the source of truth for active phase and PR checklist behavior.
+- Use `npm run generate:pr-template` (or CI sync) to keep `.github/PULL_REQUEST_TEMPLATE.md` phase-aligned.
 - Use `scripts/ralph/run-loop.sh` to run one scope at a time.
 - Use `scripts/ralph/check-gates.sh` to enforce per-loop quality gates.

@@ -1,4 +1,6 @@
+<!-- AUTO-GENERATED: run `npm run generate:pr-template`; do not edit directly -->
 ## Summary
+- Phase: `Phase B`
 - Scope ID:
 - What changed:
 - Why:
@@ -12,15 +14,14 @@
 ## Ralph Loop Checklist
 - [ ] Exactly one `scope_id` implemented in this PR
 - [ ] Changed file count is `<= 10` for this loop
-- [ ] No payment-critical file changed in Phase A:
+- [ ] No payment-critical files changed in this scope (or justified in Risk Notes):
 - [ ] `app/api/create-payment/route.ts`
 - [ ] `app/api/verify-payment/route.ts`
 - [ ] `app/api/paystack-webhook/route.ts`
-- [ ] `progress/ralph-phase-a.md` updated with loop result
+- [ ] Relevant phase progress log updated (or N/A with reason): `progress/ralph-phase-b.md`
 - [ ] Rollback path documented (single commit revert)
 
 ## Risk Notes
 - User-visible impact:
 - Backward compatibility:
 - Operational risk:
-
