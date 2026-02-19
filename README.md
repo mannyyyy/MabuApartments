@@ -265,11 +265,14 @@ mabu-apartments/
 │   └── globals.d.ts     # Global type definitions
 │
 ├── scripts/                 # Utility scripts
-│   ├── update-prices.js
-│   ├── check-database.js
-│   ├── check-bookings.js
-│   ├── check-availabilities.js
-│   └── clear-database.js
+│   ├── ops/                # Supported operational scripts
+│   │   ├── update-prices.js
+│   │   ├── check-database.js
+│   │   ├── check-bookings.js
+│   │   ├── check-availabilities.js
+│   │   ├── clear-database.js
+│   │   └── reconcile-payments.ts
+│   └── README.md
 │
 ├── docs/                    # Documentation (newly created)
 │   ├── refactoring-plan.md       # Comprehensive refactoring plan
@@ -361,12 +364,15 @@ mabu-apartments/
 | `npm run build`                | Build production application (includes Prisma generate) |
 | `npm run start`                | Start production server                                 |
 | `npm run lint`                 | Run ESLint                                              |
+| `npm run typecheck`            | Run TypeScript checks                                   |
+| `npm test`                     | Run test suite                                          |
 | `npm run seed`                 | Seed database with sample data                          |
-| `npm run update-prices`        | Update room prices via script                           |
+| `npm run update-prices`        | Show canonical price updates (add `-- --confirm` to apply) |
 | `npm run check-database`       | Check database connection and data                      |
 | `npm run check-bookings`       | Check booking data                                      |
 | `npm run check-availabilities` | Check room availability data                            |
-| `npm run clear-db`             | Clear all database data                                 |
+| `npm run clear-db`             | Clear DB in non-prod only (`ALLOW_DB_DESTRUCTIVE=true`) |
+| `npm run payments:reconcile`   | Run payment consistency reconciliation                   |
 
 ---
 
