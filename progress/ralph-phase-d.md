@@ -12,7 +12,7 @@
 - autonomy: `HITL`
 
 ## Current Pointer
-- active_scope_id: `D3_AVAILABILITY_MUTATION_PATH_MIGRATION`
+- active_scope_id: `D4_MUTATION_PATH_DEDUP_AND_RETENTION_RATIONALE`
 - active_status: `done`
 
 ## Iteration Log
@@ -41,3 +41,9 @@
 - gate_results: pass
 - next_scope_id: TBD
 - notes: Merged PR #24: refactor: route availability endpoints through server actions
+
+
+### 2026-02-19T20:54:57Z | scope_id=D4_MUTATION_PATH_DEDUP_AND_RETENTION_RATIONALE | status=done
+- gate_results: pass
+- next_scope_id: TBD
+- notes: Merged PR #25: refactor: dedupe mutation paths and document retained APIs
