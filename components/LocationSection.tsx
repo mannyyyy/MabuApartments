@@ -1,3 +1,5 @@
+"use client"
+
 import Image from 'next/image'
 import { BookmarkIcon } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -93,4 +95,3 @@ function Landmark({ title, description, imageUrl, reverse = false }: LandmarkPro
     </div>
   )
 }
-

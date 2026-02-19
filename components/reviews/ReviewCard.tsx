@@ -1,5 +1,3 @@
-"use client"
-
 import { Star } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Review } from "@/hooks/useInfiniteReviews"
@@ -33,4 +31,3 @@ export function ReviewCard({ review }: ReviewCardProps) {
     </Card>
   )
 }
-

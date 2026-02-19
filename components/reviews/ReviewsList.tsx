@@ -1,5 +1,3 @@
-"use client"
-
 import type { RefCallback } from "react"
 import type { Review } from "@/hooks/useInfiniteReviews"
 import { ReviewCard } from "@/components/reviews/ReviewCard"
@@ -20,4 +18,3 @@ export function ReviewsList({ reviews, hasMore, sentinelRef }: ReviewsListProps)
     </div>
   )
 }
-
