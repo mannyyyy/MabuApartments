@@ -1,0 +1,38 @@
+You are executing one Ralph loop for the Mabu Apartments refactor.
+
+Hard constraints:
+- Execute exactly one scope.
+- Do not expand to other phases.
+- Keep behavior unchanged unless required by the scope.
+- Do not modify payment-critical files in Phase A:
+  - app/api/create-payment/route.ts
+  - app/api/verify-payment/route.ts
+  - app/api/paystack-webhook/route.ts
+- Keep changes small and reversible.
+
+Mandatory workflow:
+1. Read only files needed for this scope.
+2. Implement the scope in minimal edits.
+3. Run required gates.
+4. Report:
+   - scope id
+   - changed files
+   - gate results
+   - risks / blockers
+   - next smallest step
+
+Output format:
+- Scope ID: <id>
+- Summary: <what changed>
+- Changed Files:
+  - <file 1>
+  - <file 2>
+- Gates:
+  - lint: pass|fail
+  - typecheck: pass|fail
+  - build: pass|fail|skipped
+- Risks:
+  - <risk or none>
+- Next Step:
+  - <next scope or completion note>
+

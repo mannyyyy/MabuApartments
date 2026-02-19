@@ -228,3 +228,9 @@ Refactor the app into a production-safe Next.js App Router architecture without 
 - Payment integration remains Paystack via API route handlers.
 - Environment secrets and webhook reachability are available in staging/production.
 - This document supersedes older week/day scheduling and metric-estimate sections.
+
+## 11) Execution Protocol
+
+- Use `docs/RALPH_EXECUTION_PROTOCOL.md` for loop orchestration and gate policy.
+- Use `scripts/ralph/run-loop.sh` to run one scope at a time.
+- Use `scripts/ralph/check-gates.sh` to enforce per-loop quality gates.
