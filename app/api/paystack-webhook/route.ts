@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 import prisma from '@/lib/db'
+import { createBookingAction } from "@/app/actions/bookings"
 
 export async function POST(req: Request) {
   try {
@@ -41,7 +42,6 @@ export async function POST(req: Request) {
 
       console.log('Room still available:', availableRoom)
 
-      // Create the booking
       try {
         console.log('Creating booking with data:', {
           roomId: availableRoom.id,
@@ -53,27 +53,15 @@ export async function POST(req: Request) {
           paymentReference: reference,
         })
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/create-booking`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            roomId: availableRoom.id,
-            guestName: metadata.name,
-            guestEmail: customer.email,
-            checkIn: metadata.checkIn,
-            checkOut: metadata.checkOut,
-            totalPrice: amount / 100, // Convert from kobo to naira
-            paymentReference: reference,
-          }),
+        const result = await createBookingAction({
+          roomId: availableRoom.id,
+          guestName: metadata.name,
+          guestEmail: customer.email,
+          checkIn: metadata.checkIn,
+          checkOut: metadata.checkOut,
+          totalPrice: amount / 100,
+          paymentReference: reference,
         })
-
-        if (!response.ok) {
-          throw new Error(`Failed to create booking: ${response.status} ${response.statusText}`)
-        }
-
-        const result = await response.json()
         console.log('Booking created:', result.booking)
       } catch (error) {
         console.error('Error creating booking:', error)

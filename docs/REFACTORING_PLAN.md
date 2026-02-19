@@ -134,11 +134,13 @@ Refactor the app into a production-safe Next.js App Router architecture without 
 - `POST /api/verify-payment`
 - `POST /api/paystack-webhook`
 - `GET /api/reviews` (paginated read for infinite scroll compatibility)
+- `GET /api/unavailable-dates` (read path retained for current client hook compatibility)
 
 ### API Routes to deprecate after migration validation
-- `POST /api/create-booking`
-- `POST /api/check-availability` (if fully replaced by action path)
-- `GET /api/unavailable-dates` (if supplied by server-driven data path)
+- `POST /api/create-booking` (replaced by `createBookingAction`)
+- `POST /api/extend-booking` (replaced by `extendBookingAction`)
+- `POST /api/check-availability` (replaced by `checkAvailabilityAction`)
+- `POST /api/reviews` (replaced by `submitReviewAction`; route now rejects writes)
 
 ### Type contracts to centralize
 - `BookingInput`
@@ -213,7 +215,7 @@ Refactor the app into a production-safe Next.js App Router architecture without 
 
 ### Rollout
 - Ship in small phases.
-- Keep legacy endpoints until replacement path is verified.
+- Keep legacy endpoints only where externally required; remove internal duplicates once action paths are verified.
 - Validate booking/payment metrics after each phase.
 
 ### Rollback

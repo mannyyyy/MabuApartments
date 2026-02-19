@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
+import { submitReviewAction } from "@/app/actions/reviews"
 
 interface LeaveReviewFormProps {
   onClose: () => void
@@ -25,17 +26,7 @@ export function LeaveReviewForm({ onClose, roomId }: LeaveReviewFormProps) {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch('/api/reviews', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ roomId, name, rating, comment }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to submit review')
-      }
+      await submitReviewAction({ roomId, name, rating, comment })
 
       toast({
         title: "Review submitted",
@@ -106,4 +97,3 @@ export function LeaveReviewForm({ onClose, roomId }: LeaveReviewFormProps) {
     </div>
   )
 }
-

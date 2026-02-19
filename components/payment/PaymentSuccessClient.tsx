@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { CheckCircle, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { createBookingAction } from "@/app/actions/bookings"
 
 export function PaymentSuccessClient() {
   const [status, setStatus] = useState<"success" | "failure" | "loading">("loading")
@@ -37,55 +38,27 @@ export function PaymentSuccessClient() {
         console.log("Full verification response:", data)
 
         if (data.status === "success" && data.reference === ref) {
-          return createBooking(data)
+          return createBookingAction({
+            roomId: data.metadata.roomId,
+            guestName: data.metadata.name,
+            guestEmail: data.customer.email,
+            checkIn: data.metadata.checkIn,
+            checkOut: data.metadata.checkOut,
+            totalPrice: data.amount / 100,
+            paymentReference: data.reference,
+          })
         }
         throw new Error("Payment verification failed")
       })
       .then((bookingData) => {
         console.log("Booking created:", bookingData)
-        if (bookingData.success) {
-          setStatus("success")
-          return
-        }
-        throw new Error(bookingData.error || "Failed to create booking")
+        setStatus("success")
       })
       .catch((error) => {
         console.error("Error in payment process:", error)
         setStatus("failure")
       })
   }, [searchParams])
-
-  const createBooking = async (paymentData: {
-    metadata: {
-      roomId: string
-      name: string
-      checkIn: string
-      checkOut: string
-    }
-    customer: {
-      email: string
-    }
-    amount: number
-    reference: string
-  }) => {
-    const response = await fetch("/api/create-booking", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        roomId: paymentData.metadata.roomId,
-        guestName: paymentData.metadata.name,
-        guestEmail: paymentData.customer.email,
-        checkIn: paymentData.metadata.checkIn,
-        checkOut: paymentData.metadata.checkOut,
-        totalPrice: paymentData.amount / 100,
-        paymentReference: paymentData.reference,
-      }),
-    })
-
-    return response.json()
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center">

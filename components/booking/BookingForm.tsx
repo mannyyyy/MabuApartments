@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 import { bookingFormSchema, type BookingDateRange, type BookingFormValues } from "@/lib/validators/booking.schema"
 import { DateRangePicker } from "@/components/booking/DateRangePicker"
 import { PriceSummary } from "@/components/booking/PriceSummary"
+import { checkAvailabilityAction } from "@/app/actions/availability"
 
 type BookingFormProps = {
   roomTypeId: string
@@ -93,17 +94,11 @@ export function BookingForm({ roomTypeId, price, title }: BookingFormProps) {
         return
       }
 
-      const availabilityResponse = await fetch("/api/check-availability", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          roomTypeId,
-          checkIn: values.dateRange.from.toISOString(),
-          checkOut: values.dateRange.to.toISOString(),
-        }),
+      const availabilityData = await checkAvailabilityAction({
+        roomTypeId,
+        checkIn: values.dateRange.from.toISOString(),
+        checkOut: values.dateRange.to.toISOString(),
       })
-
-      const availabilityData = await availabilityResponse.json()
 
       if (!availabilityData.available) {
         toast({
@@ -215,4 +210,3 @@ export function BookingForm({ roomTypeId, price, title }: BookingFormProps) {
     </div>
   )
 }
-
