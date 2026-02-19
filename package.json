@@ -9,6 +9,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "node --test -r ts-node/register test/*.test.ts",
+    "payments:reconcile": "ts-node --files scripts/reconcile-payments.ts",
     "seed": "ts-node prisma/seed.ts",
     "update-prices": "node scripts/update-prices.js",
     "check-database": "node scripts/check-database.js",
