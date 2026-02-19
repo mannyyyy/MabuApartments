@@ -1,6 +1,6 @@
 <!-- AUTO-GENERATED: run `npm run generate:pr-template`; do not edit directly -->
 ## Summary
-- Phase: `Phase B`
+- Phase: `Phase C`
 - Scope ID:
 - What changed:
 - Why:
@@ -18,7 +18,7 @@
 - [ ] `app/api/create-payment/route.ts`
 - [ ] `app/api/verify-payment/route.ts`
 - [ ] `app/api/paystack-webhook/route.ts`
-- [ ] Relevant phase progress log updated (or N/A with reason): `progress/ralph-phase-b.md`
+- [ ] Relevant phase progress log updated (or N/A with reason): `progress/ralph-phase-c.md`
 - [ ] Rollback path documented (single commit revert)
 
 ## Risk Notes
