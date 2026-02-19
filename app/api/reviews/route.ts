@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import prisma from '@/lib/db'
+import { createReviewInputSchema, reviewListQuerySchema } from '@/lib/validators/review.schema'
+import { createReview, getPaginatedReviews } from '@/services/review.service'
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -7,24 +8,20 @@ export async function GET(req: Request) {
   const page = parseInt(searchParams.get('page') || '1')
   const limit = parseInt(searchParams.get('limit') || '5')
 
-  if (!roomId) {
+  const roomIdValidation = reviewListQuerySchema.safeParse({ roomId: roomId ?? '' })
+  if (!roomIdValidation.success) {
     return NextResponse.json({ error: 'Room ID is required' }, { status: 400 })
   }
 
   try {
-    const reviews = await prisma.review.findMany({
-      where: { roomId },
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit + 1, // Fetch one extra to check if there are more
-      distinct: ['id'], // Ensure we're not fetching duplicate reviews
+    const { reviews, hasMore } = await getPaginatedReviews({
+      roomId: roomIdValidation.data.roomId,
+      page,
+      limit,
     })
 
-    const hasMore = reviews.length > limit
-    const reviewsToReturn = hasMore ? reviews.slice(0, -1) : reviews
-
     return NextResponse.json({
-      reviews: reviewsToReturn,
+      reviews,
       hasMore,
     })
   } catch (error) {
@@ -35,20 +32,13 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { roomId, name, rating, comment } = await req.json()
-
-    if (!roomId || !name || !rating || !comment) {
+    const payload = await req.json()
+    const parsedPayload = createReviewInputSchema.safeParse(payload)
+    if (!parsedPayload.success) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const newReview = await prisma.review.create({
-      data: {
-        roomId,
-        name,
-        rating,
-        comment,
-      },
-    })
+    const newReview = await createReview(parsedPayload.data)
 
     return NextResponse.json(newReview)
   } catch (error) {
