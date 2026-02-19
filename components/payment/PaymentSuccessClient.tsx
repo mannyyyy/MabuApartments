@@ -2,12 +2,18 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { CheckCircle, XCircle } from "lucide-react"
+import { CheckCircle, Clock3, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { createBookingAction } from "@/app/actions/bookings"
+
+type VerifyResponse = {
+  status: "success" | "error"
+  reference?: string
+  bookingConfirmed?: boolean
+  message?: string
+}
 
 export function PaymentSuccessClient() {
-  const [status, setStatus] = useState<"success" | "failure" | "loading">("loading")
+  const [status, setStatus] = useState<"confirmed" | "processing" | "failure" | "loading">("loading")
   const [reference, setReference] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -16,75 +22,58 @@ export function PaymentSuccessClient() {
     const ref = searchParams.get("reference")
     setReference(ref)
 
-    console.log("Payment success page loaded. Reference:", ref)
-
     if (!ref) {
-      console.error("No reference found in query parameters")
       setStatus("failure")
       return
     }
 
-    console.log("Verifying payment with reference:", ref)
-
-    fetch(`/api/verify-payment?reference=${ref}`)
+    fetch(`/api/verify-payment?reference=${encodeURIComponent(ref)}`)
       .then((res) => {
-        console.log("Verify payment response status:", res.status)
         if (!res.ok) {
           throw new Error(`API returned status ${res.status}`)
         }
-        return res.json()
+        return res.json() as Promise<VerifyResponse>
       })
       .then((data) => {
-        console.log("Full verification response:", data)
-
-        if (data.status === "success" && data.reference === ref) {
-          return createBookingAction({
-            roomId: data.metadata.roomId,
-            guestName: data.metadata.name,
-            guestEmail: data.customer.email,
-            checkIn: data.metadata.checkIn,
-            checkOut: data.metadata.checkOut,
-            totalPrice: data.amount / 100,
-            paymentReference: data.reference,
-          })
+        if (data.status !== "success") {
+          throw new Error(data.message || "Payment verification failed")
         }
-        throw new Error("Payment verification failed")
-      })
-      .then((bookingData) => {
-        console.log("Booking created:", bookingData)
-        setStatus("success")
+        setStatus(data.bookingConfirmed ? "confirmed" : "processing")
       })
       .catch((error) => {
-        console.error("Error in payment process:", error)
+        console.error("Error in payment verification:", error)
         setStatus("failure")
       })
   }, [searchParams])
 
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        {status === "success" ? (
+      <div className="text-center max-w-xl px-4">
+        {status === "confirmed" ? (
           <>
             <CheckCircle className="mx-auto h-16 w-16 text-green-500 mb-4" />
             <h1 className="text-2xl font-bold mb-2">Booking Confirmed!</h1>
             <p className="text-gray-600 mb-4">
-              Thank you for your payment. Your booking has been successfully created.
-              <br />
-              <span className="text-sm">
-                A confirmation email will be sent to your email address shortly. If you don&apos;t receive it, please
-                check your spam folder or contact support.
-              </span>
+              Thank you for your payment. Your booking has been successfully confirmed.
             </p>
-            <p className="text-sm text-gray-500 mb-4">Reference: {reference}</p>
+            {reference && <p className="text-sm text-gray-500 mb-4">Reference: {reference}</p>}
+            <Button onClick={() => router.push("/")}>Return to Home</Button>
+          </>
+        ) : status === "processing" ? (
+          <>
+            <Clock3 className="mx-auto h-16 w-16 text-amber-500 mb-4" />
+            <h1 className="text-2xl font-bold mb-2">Payment Received</h1>
+            <p className="text-gray-600 mb-4">
+              Your payment was received. We are finalizing your booking and you will get confirmation shortly.
+            </p>
+            {reference && <p className="text-sm text-gray-500 mb-4">Reference: {reference}</p>}
             <Button onClick={() => router.push("/")}>Return to Home</Button>
           </>
         ) : status === "failure" ? (
           <>
             <XCircle className="mx-auto h-16 w-16 text-red-500 mb-4" />
             <h1 className="text-2xl font-bold mb-2">Booking Failed</h1>
-            <p className="text-gray-600 mb-4">
-              We could not process your booking. Please contact support or try again.
-            </p>
+            <p className="text-gray-600 mb-4">We could not process your booking. Please contact support or try again.</p>
             {reference && <p className="text-sm text-gray-500 mb-4">Reference: {reference}</p>}
             <Button onClick={() => router.push("/")}>Return to Home</Button>
           </>
@@ -95,7 +84,7 @@ export function PaymentSuccessClient() {
               <div className="h-6 w-32 bg-gray-200 mx-auto mb-2 rounded" />
               <div className="h-4 w-64 bg-gray-200 mx-auto mb-4 rounded" />
             </div>
-            <p className="text-gray-600 mb-4">Processing your booking...</p>
+            <p className="text-gray-600 mb-4">Verifying your payment...</p>
             {reference && <p className="text-sm text-gray-500">Reference: {reference}</p>}
           </>
         )}

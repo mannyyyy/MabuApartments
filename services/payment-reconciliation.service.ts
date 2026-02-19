@@ -1,7 +1,9 @@
 import prisma from "../lib/db"
+import { Prisma } from "@prisma/client"
 import {
   analyzePaymentConsistency,
   type BookingPaymentSnapshot,
+  type BookingRequestPaymentSnapshot,
   type ReconciliationResult,
 } from "../lib/payments/reconciliation"
 
@@ -14,6 +16,14 @@ export type RunPaymentReconciliationOptions = {
 export type PaymentReconciliationReport = ReconciliationResult & {
   windowStart: Date
   windowDays: number
+}
+
+function isMissingBookingRequestTableError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2021" &&
+    String(error.meta?.table || "").includes("BookingRequest")
+  )
 }
 
 export async function runPaymentReconciliation(
@@ -39,6 +49,35 @@ export async function runPaymentReconciliation(
     },
   })
 
+  let bookingRequests: Array<{
+    id: string
+    paymentStatus: string
+    paymentReference: string | null
+    bookingId: string | null
+    createdAt: Date
+  }> = []
+
+  try {
+    bookingRequests = await prisma.bookingRequest.findMany({
+      where: {
+        createdAt: {
+          gte: windowStart,
+        },
+      },
+      select: {
+        id: true,
+        paymentStatus: true,
+        paymentReference: true,
+        bookingId: true,
+        createdAt: true,
+      },
+    })
+  } catch (error) {
+    if (!isMissingBookingRequestTableError(error)) {
+      throw error
+    }
+  }
+
   const snapshots: BookingPaymentSnapshot[] = bookings.map((booking) => ({
     id: booking.id,
     paymentStatus: booking.paymentStatus,
@@ -47,7 +86,19 @@ export async function runPaymentReconciliation(
     createdAt: booking.createdAt,
   }))
 
-  const result = analyzePaymentConsistency(snapshots, { now, pendingTimeoutHours })
+  const requestSnapshots: BookingRequestPaymentSnapshot[] = bookingRequests.map((item) => ({
+    id: item.id,
+    paymentStatus: item.paymentStatus,
+    paymentReference: item.paymentReference,
+    bookingId: item.bookingId,
+    createdAt: item.createdAt,
+  }))
+
+  const result = analyzePaymentConsistency(snapshots, {
+    now,
+    pendingTimeoutHours,
+    bookingRequests: requestSnapshots,
+  })
 
   return {
     ...result,

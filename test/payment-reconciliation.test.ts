@@ -4,6 +4,7 @@ import {
   analyzePaymentConsistency,
   formatReconciliationReport,
   type BookingPaymentSnapshot,
+  type BookingRequestPaymentSnapshot,
 } from "../lib/payments/reconciliation"
 
 test("analyzePaymentConsistency detects missing refs, stale pending, and duplicate refs", () => {
@@ -40,16 +41,40 @@ test("analyzePaymentConsistency detects missing refs, stale pending, and duplica
     },
   ]
 
-  const result = analyzePaymentConsistency(bookings, { now, pendingTimeoutHours: 24 })
+  const bookingRequests: BookingRequestPaymentSnapshot[] = [
+    {
+      id: "request_paid_without_booking",
+      paymentStatus: "paid",
+      paymentReference: "ref_paid_request",
+      bookingId: null,
+      createdAt: new Date("2026-02-19T09:00:00.000Z"),
+    },
+    {
+      id: "request_stale_initiated",
+      paymentStatus: "initiated",
+      paymentReference: "ref_initiated",
+      bookingId: null,
+      createdAt: new Date("2026-02-18T09:00:00.000Z"),
+    },
+  ]
+
+  const result = analyzePaymentConsistency(bookings, {
+    now,
+    pendingTimeoutHours: 24,
+    bookingRequests,
+  })
   const codes = result.issues.map((issue) => issue.code).sort()
 
   assert.deepEqual(codes, [
     "DUPLICATE_PAYMENT_REFERENCE",
+    "PAID_REQUEST_WITHOUT_BOOKING",
     "PAID_WITHOUT_REFERENCE",
+    "STALE_INITIATED_REQUEST",
     "STALE_PENDING_PAYMENT",
   ])
   assert.equal(result.summary.scannedBookings, 4)
-  assert.equal(result.summary.issueCount, 3)
+  assert.equal(result.summary.scannedBookingRequests, 2)
+  assert.equal(result.summary.issueCount, 5)
 })
 
 test("formatReconciliationReport prints a stable summary", () => {
@@ -58,5 +83,6 @@ test("formatReconciliationReport prints a stable summary", () => {
 
   assert.match(report, /Payment Reconciliation Report/)
   assert.match(report, /Scanned bookings: 0/)
+  assert.match(report, /Scanned booking requests: 0/)
   assert.match(report, /No issues detected\./)
 })

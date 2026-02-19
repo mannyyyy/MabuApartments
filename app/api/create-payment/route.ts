@@ -1,63 +1,34 @@
 import { NextResponse } from "next/server"
-import https from "https"
+import { z } from "zod"
+import { initializePaystackTransaction } from "@/lib/payments/paystack"
+
+const createPaymentSchema = z.object({
+  email: z.string().trim().email(),
+  amount: z.number().int().positive(),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+})
 
 export async function POST(req: Request): Promise<Response> {
   try {
-    const { email, amount, metadata } = await req.json()
+    const body = await req.json()
+    const parsed = createPaymentSchema.safeParse(body)
 
-    if (!email || !amount || !metadata) {
-      return NextResponse.json({ message: "Missing required fields" }, { status: 400 })
+    if (!parsed.success) {
+      return NextResponse.json(
+        { message: "Invalid payment initialization payload", errors: parsed.error.flatten() },
+        { status: 400 },
+      )
     }
 
-    const params = JSON.stringify({
-      email: email,
-      amount: amount,
-      metadata: metadata,
-      callback_url: `${process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || "http://localhost:3000"}/payment-success`,
-      channels: ["card", "bank", "ussd", "qr", "mobile_money", "bank_transfer"],
+    const payment = await initializePaystackTransaction({
+      email: parsed.data.email,
+      amount: parsed.data.amount,
+      metadata: parsed.data.metadata,
     })
 
-    const options = {
-      hostname: "api.paystack.co",
-      port: 443,
-      path: "/transaction/initialize",
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-        "Content-Type": "application/json",
-      },
-    }
-
-    return await new Promise<Response>((resolve) => {
-      const reqPaystack = https
-        .request(options, (res) => {
-          let data = ""
-
-          res.on("data", (chunk) => {
-            data += chunk
-          })
-
-          res.on("end", () => {
-            const response = JSON.parse(data)
-            if (response.status) {
-              resolve(NextResponse.json(response.data))
-            } else {
-              console.error("Paystack error:", response.message)
-              resolve(NextResponse.json({ message: response.message }, { status: 400 }))
-            }
-          })
-        })
-        .on("error", (error) => {
-          console.error("Request error:", error)
-          resolve(NextResponse.json({ message: "An error occurred" }, { status: 500 }))
-        })
-
-      reqPaystack.write(params)
-      reqPaystack.end()
-    })
+    return NextResponse.json(payment)
   } catch (error) {
-    console.error("Unexpected error:", error)
-    return NextResponse.json({ message: "An unexpected error occurred" }, { status: 500 })
+    console.error("Unexpected error while creating payment", error)
+    return NextResponse.json({ message: "Failed to initialize payment" }, { status: 500 })
   }
 }
-

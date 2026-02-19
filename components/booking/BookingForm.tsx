@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAvailability } from "@/hooks/useAvailability"
 import { useBookingPrice } from "@/hooks/useBookingPrice"
 import { useToast } from "@/hooks/use-toast"
@@ -21,12 +22,21 @@ type BookingFormProps = {
   title: string
 }
 
+type UploadedOfficialId = {
+  url: string
+  mimeType: string
+  originalName: string
+  sizeBytes: number
+}
+
 export function BookingForm({ roomTypeId, price, title }: BookingFormProps) {
   const [dateRange, setDateRange] = useState<BookingDateRange>({
     from: undefined,
     to: undefined,
   })
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const [officialIdFile, setOfficialIdFile] = useState<File | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { unavailableDates } = useAvailability(roomTypeId)
   const { totalPrice, nights } = useBookingPrice(price, dateRange)
   const { toast } = useToast()
@@ -34,8 +44,14 @@ export function BookingForm({ roomTypeId, price, title }: BookingFormProps) {
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingFormSchema),
     defaultValues: {
-      name: "",
+      fullName: "",
+      phoneNumber: "",
       email: "",
+      roomSpecification: title,
+      heardAboutUs: "",
+      guestType: "NEW",
+      gender: "PREFER_NOT_TO_SAY",
+      termsConsent: "DECLINE",
       dateRange: {
         from: undefined,
         to: undefined,
@@ -83,12 +99,40 @@ export function BookingForm({ roomTypeId, price, title }: BookingFormProps) {
     [unavailableDates, toast],
   )
 
+  async function uploadOfficialId(file: File): Promise<UploadedOfficialId> {
+    const filePayload = new FormData()
+    filePayload.append("file", file)
+
+    const response = await fetch("/api/uploads/official-id", {
+      method: "POST",
+      body: filePayload,
+    })
+
+    const data = await response.json()
+    if (!response.ok) {
+      throw new Error(data.message || "Official ID upload failed")
+    }
+
+    return data as UploadedOfficialId
+  }
+
   async function onSubmit(values: BookingFormValues) {
     try {
+      setIsSubmitting(true)
+
       if (!values.dateRange.from || !values.dateRange.to) {
         toast({
           title: "Invalid Date Range",
           description: "Please select both check-in and check-out dates.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (!officialIdFile) {
+        toast({
+          title: "Official ID required",
+          description: "Please upload a valid ID file (PDF or image, max 10MB).",
           variant: "destructive",
         })
         return
@@ -109,42 +153,44 @@ export function BookingForm({ roomTypeId, price, title }: BookingFormProps) {
         return
       }
 
-      const paymentResponse = await fetch("/api/create-payment", {
+      const uploadedOfficialId = await uploadOfficialId(officialIdFile)
+
+      const paymentResponse = await fetch("/api/booking-requests/initiate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          fullName: values.fullName,
+          phoneNumber: values.phoneNumber,
           email: values.email,
-          amount: totalPrice * 100,
-          metadata: {
-            name: values.name,
-            roomId: availabilityData.roomId,
-            checkIn: values.dateRange.from.toISOString(),
-            checkOut: values.dateRange.to.toISOString(),
-            roomTitle: title,
-          },
+          arrivalDate: values.dateRange.from.toISOString(),
+          departureDate: values.dateRange.to.toISOString(),
+          roomTypeId,
+          roomSpecification: values.roomSpecification,
+          heardAboutUs: values.heardAboutUs,
+          guestType: values.guestType,
+          gender: values.gender,
+          termsConsent: values.termsConsent,
+          officialId: uploadedOfficialId,
         }),
       })
 
       const paymentData = await paymentResponse.json()
 
-      if (paymentResponse.ok) {
+      if (paymentResponse.ok && paymentData.authorization_url) {
         window.location.href = paymentData.authorization_url
       } else {
         throw new Error(paymentData.message || "Payment initialization failed")
       }
-    } catch {
+    } catch (error) {
+      console.error(error)
       toast({
         title: "Error",
         description: "An error occurred during the booking process. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setIsSubmitting(false)
     }
-  }
-
-  const handleWhatsAppBooking = () => {
-    const message = encodeURIComponent(`I would like to make a booking for ${title}`)
-    const whatsappUrl = `https://wa.me/2348103992400?text=${message}`
-    window.open(whatsappUrl, "_blank")
   }
 
   return (
@@ -159,12 +205,26 @@ export function BookingForm({ roomTypeId, price, title }: BookingFormProps) {
 
             <FormField
               control={form.control}
-              name="name"
+              name="fullName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Full Name</FormLabel>
                   <FormControl>
                     <Input placeholder="John Doe" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="phoneNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone Number</FormLabel>
+                  <FormControl>
+                    <Input placeholder="+2348012345678" type="tel" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -185,6 +245,20 @@ export function BookingForm({ roomTypeId, price, title }: BookingFormProps) {
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="roomSpecification"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Room Specification</FormLabel>
+                  <FormControl>
+                    <Input {...field} readOnly />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <DateRangePicker
               control={form.control}
               dateRange={dateRange}
@@ -194,15 +268,142 @@ export function BookingForm({ roomTypeId, price, title }: BookingFormProps) {
               onDateSelect={handleDateSelect}
             />
 
+            <FormField
+              control={form.control}
+              name="heardAboutUs"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Where did you hear about us?</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Instagram, referral, Google..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="guestType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Guest Type</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select guest type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="NEW">New Guest</SelectItem>
+                      <SelectItem value="RETURNING">Returning Guest</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="gender"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Gender</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="MALE">Male</SelectItem>
+                      <SelectItem value="FEMALE">Female</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                      <SelectItem value="PREFER_NOT_TO_SAY">Prefer not to say</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">Official ID (PDF/Image, max 10MB)</label>
+              <Input
+                type="file"
+                accept=".pdf,image/jpeg,image/png,image/webp"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null
+                  if (file && file.size > 10 * 1024 * 1024) {
+                    toast({
+                      title: "File too large",
+                      description: "Official ID must be 10MB or less.",
+                      variant: "destructive",
+                    })
+                    event.target.value = ""
+                    setOfficialIdFile(null)
+                    return
+                  }
+                  setOfficialIdFile(file)
+                }}
+              />
+              {!officialIdFile ? (
+                <p className="text-[0.8rem] text-muted-foreground">Upload one official ID file before payment.</p>
+              ) : (
+                <p className="text-[0.8rem] text-muted-foreground">Selected: {officialIdFile.name}</p>
+              )}
+            </div>
+
+            <FormField
+              control={form.control}
+              name="termsConsent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Terms &amp; Conditions</FormLabel>
+                  <div className="rounded-md border p-3 text-sm space-y-2">
+                    <ol className="list-decimal pl-5 space-y-1">
+                      <li>Suicide is strictly prohibited on the premises.</li>
+                      <li>
+                        A refundable deposit of NGN 20,000 is required at check-in and is refunded in full if there
+                        is no damage to room gadgets or property.
+                      </li>
+                      <li>Smoking is not allowed inside the apartment or anywhere on the premises.</li>
+                      <li>
+                        Extension and late checkout: NGN 20,000 extra per hour will be charged if you fail to check
+                        out on time.
+                      </li>
+                    </ol>
+                    <p className="text-xs text-muted-foreground">
+                      By accepting these terms, you confirm that you have read, understood, and agree to abide by all
+                      conditions listed.
+                    </p>
+                  </div>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Accept or decline" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="ACCEPT">Accept</SelectItem>
+                      <SelectItem value="DECLINE">Decline</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <PriceSummary totalPrice={totalPrice} nights={nights} pricePerNight={price} />
 
             <Button
-              type="button"
+              type="submit"
               className="w-full bg-[#978667] hover:bg-[#4B514C] text-white font-semibold"
               size="lg"
-              onClick={handleWhatsAppBooking}
+              disabled={isSubmitting}
             >
-              Book Now via WhatsApp
+              {isSubmitting ? "Processing..." : "Proceed to Payment"}
             </Button>
           </form>
         </Form>
