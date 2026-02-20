@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client"
 import prisma from "@/lib/db"
 import type { CheckAvailabilityInput } from "@/lib/validators/availability.schema"
 import {
@@ -11,7 +12,17 @@ import {
   toUtcMidnightFromDayKey,
 } from "@/lib/booking-time-policy"
 
-export async function findAvailableRoom(input: CheckAvailabilityInput) {
+type AvailabilityDbClient = Prisma.TransactionClient | typeof prisma
+
+type FindAvailableRoomOptions = {
+  db?: AvailabilityDbClient
+  now?: Date
+  excludeBookingRequestId?: string
+}
+
+export async function findAvailableRoom(input: CheckAvailabilityInput, options: FindAvailableRoomOptions = {}) {
+  const db = options.db ?? prisma
+  const now = options.now ?? new Date()
   const requestCheckInDay = toLagosBookingDayKey(input.checkIn)
   const requestCheckOutDay = toLagosBookingDayKey(input.checkOut)
   const requestCheckInInstant = toLagosCheckInInstant(input.checkIn)
@@ -21,7 +32,7 @@ export async function findAvailableRoom(input: CheckAvailabilityInput) {
     return null
   }
 
-  const rooms = await prisma.room.findMany({
+  const rooms = await db.room.findMany({
     where: {
       roomTypeId: input.roomTypeId,
     },
@@ -36,14 +47,39 @@ export async function findAvailableRoom(input: CheckAvailabilityInput) {
           },
         },
       },
+      bookingHolds: {
+        where: {
+          status: "active",
+          expiresAt: {
+            gt: now,
+          },
+          arrivalDate: {
+            lt: requestCheckOutInstant,
+          },
+          departureDate: {
+            gt: requestCheckInInstant,
+          },
+          ...(options.excludeBookingRequestId
+            ? {
+                bookingRequestId: {
+                  not: options.excludeBookingRequestId,
+                },
+              }
+            : {}),
+        },
+      },
     },
   })
 
   for (const room of rooms) {
-    const hasConflict = room.bookings.some((booking) =>
+    const hasBookingConflict = room.bookings.some((booking) =>
       bookingRangesOverlapByDay(requestCheckInDay, requestCheckOutDay, booking.checkIn, booking.checkOut),
     )
-    if (!hasConflict) {
+    const hasHoldConflict = room.bookingHolds.some((hold) =>
+      bookingRangesOverlapByDay(requestCheckInDay, requestCheckOutDay, hold.arrivalDate, hold.departureDate),
+    )
+
+    if (!hasBookingConflict && !hasHoldConflict) {
       return room
     }
   }
@@ -52,9 +88,11 @@ export async function findAvailableRoom(input: CheckAvailabilityInput) {
 }
 
 export async function getUnavailableDatesForRoomType(roomTypeId: string) {
+  const now = new Date()
   const todayDay = toLagosNowDayKey()
   const startEpochDay = dayKeyToEpochDay(todayDay)
   const endEpochDay = startEpochDay + 365
+  const endWindowDay = epochDayToDayKey(endEpochDay + 1)
 
   const rooms = await prisma.room.findMany({
     where: {
@@ -68,6 +106,20 @@ export async function getUnavailableDatesForRoomType(roomTypeId: string) {
           },
         },
       },
+      bookingHolds: {
+        where: {
+          status: "active",
+          expiresAt: {
+            gt: now,
+          },
+          departureDate: {
+            gt: toLagosCheckInInstant(todayDay),
+          },
+          arrivalDate: {
+            lt: toLagosCheckInInstant(endWindowDay),
+          },
+        },
+      },
     },
   })
 
@@ -78,11 +130,18 @@ export async function getUnavailableDatesForRoomType(roomTypeId: string) {
     const dayKey = epochDayToDayKey(epochDay)
     const nextDayKey = epochDayToDayKey(epochDay + 1)
 
-    const bookedRoomsCount = rooms.filter((room) =>
-      room.bookings.some((booking) => bookingRangesOverlapByDay(dayKey, nextDayKey, booking.checkIn, booking.checkOut)),
-    ).length
+    const blockedRoomsCount = rooms.filter((room) => {
+      const hasBooking = room.bookings.some((booking) =>
+        bookingRangesOverlapByDay(dayKey, nextDayKey, booking.checkIn, booking.checkOut),
+      )
+      const hasHold = room.bookingHolds.some((hold) =>
+        bookingRangesOverlapByDay(dayKey, nextDayKey, hold.arrivalDate, hold.departureDate),
+      )
 
-    if (bookedRoomsCount >= totalRooms) {
+      return hasBooking || hasHold
+    }).length
+
+    if (blockedRoomsCount >= totalRooms) {
       unavailableDates.add(dayKey)
     }
   }

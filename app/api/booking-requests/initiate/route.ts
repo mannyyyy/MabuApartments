@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import prisma from "@/lib/db"
 import { bookingRequestInitiateSchema } from "@/lib/validators/booking-request.schema"
-import { findAvailableRoom } from "@/services/availability.service"
 import {
   createBookingRequest,
   findLatestReusableBookingRequest,
@@ -19,6 +18,11 @@ import {
 import { enforceRateLimit } from "@/lib/security/rate-limit-redis"
 import { getRequestIp } from "@/lib/security/request-ip"
 import { dayKeyToEpochDay } from "@/lib/booking-time-policy"
+import {
+  markBookingHoldAsReleased,
+  reserveRoomHoldForBookingRequest,
+  saveBookingHoldPaymentReference,
+} from "@/services/booking-hold.service"
 
 const INITIATE_WINDOW_MS = 10 * 60 * 1000
 const INITIATE_LIMIT = 6
@@ -78,18 +82,6 @@ export async function POST(req: Request) {
     }
 
     const input = parsed.data
-    const availableRoom = await findAvailableRoom({
-      roomTypeId: input.roomTypeId,
-      checkIn: input.arrivalDate,
-      checkOut: input.departureDate,
-    })
-
-    if (!availableRoom) {
-      return NextResponse.json(
-        { message: "Selected room is no longer available for the chosen dates" },
-        { status: 409 },
-      )
-    }
 
     const roomType = await prisma.roomType.findUnique({
       where: { id: input.roomTypeId },
@@ -115,27 +107,50 @@ export async function POST(req: Request) {
       ? await prepareBookingRequestForPaymentRetry(reusableBookingRequest.id)
       : await createBookingRequest(input, amountKobo)
 
+    const activeHold = await reserveRoomHoldForBookingRequest({
+      bookingRequestId: bookingRequest.id,
+      roomTypeId: input.roomTypeId,
+      checkIn: input.arrivalDate,
+      checkOut: input.departureDate,
+    })
+
+    if (!activeHold) {
+      await markBookingRequestAsFailed(bookingRequest.id, "No room available for the selected dates.")
+      return NextResponse.json(
+        { message: "Selected room is no longer available for the chosen dates" },
+        { status: 409 },
+      )
+    }
+
     try {
       const callbackBaseUrl = deriveCallbackBaseUrl(req)
       console.info("Initializing Paystack transaction", {
         bookingRequestId: bookingRequest.id,
+        bookingHoldId: activeHold.id,
         callbackBaseUrl,
         environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown",
       })
 
-      const payment = await initializePaystackTransaction({
-        email: input.email,
-        amount: amountKobo,
-        metadata: {
-          bookingRequestId: bookingRequest.id,
-          roomTypeId: input.roomTypeId,
-          roomSpecification: input.roomSpecification,
-          arrivalDate: input.arrivalDate,
-          departureDate: input.departureDate,
+      const payment = await initializePaystackTransaction(
+        {
+          email: input.email,
+          amount: amountKobo,
+          metadata: {
+            bookingRequestId: bookingRequest.id,
+            bookingHoldId: activeHold.id,
+            roomTypeId: input.roomTypeId,
+            roomSpecification: input.roomSpecification,
+            arrivalDate: input.arrivalDate,
+            departureDate: input.departureDate,
+          },
         },
-      }, { callbackBaseUrl })
+        { callbackBaseUrl },
+      )
 
-      await saveBookingRequestPaymentReference(bookingRequest.id, payment.reference)
+      await Promise.all([
+        saveBookingRequestPaymentReference(bookingRequest.id, payment.reference),
+        saveBookingHoldPaymentReference(bookingRequest.id, payment.reference),
+      ])
 
       return NextResponse.json({
         bookingRequestId: bookingRequest.id,
@@ -157,12 +172,14 @@ export async function POST(req: Request) {
             retryable: true,
             code: "PAYMENT_INIT_TEMPORARY_UNAVAILABLE",
             bookingRequestId: bookingRequest.id,
+            holdExpiresAt: activeHold.expiresAt.toISOString(),
           },
           { status: 503 },
         )
       }
 
       await markBookingRequestAsFailed(bookingRequest.id, reason)
+      await markBookingHoldAsReleased(bookingRequest.id)
       if (paymentError instanceof PaymentInitNonRetryableError) {
         return NextResponse.json(
           {
