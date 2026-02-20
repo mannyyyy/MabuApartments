@@ -5,6 +5,7 @@ import {
   dayKeyToEpochDay,
   epochDayToDayKey,
   iterateBookingDayKeys,
+  resolveRoomCheckInInstant,
   toLagosBookingDayKey,
   toLagosCheckInInstant,
   toLagosCheckOutInstant,
@@ -12,7 +13,21 @@ import {
 } from "@/lib/booking-time-policy"
 
 export async function createBookingWithRoom(input: CreateBookingApiInput) {
-  const normalizedCheckIn = toLagosCheckInInstant(input.checkIn)
+  const now = new Date()
+  const activeBooking = await prisma.booking.findFirst({
+    where: {
+      roomId: input.roomId,
+      checkIn: { lte: now },
+      checkOut: { gt: now },
+    },
+    select: { id: true },
+  })
+
+  const normalizedCheckIn = resolveRoomCheckInInstant({
+    requestedCheckIn: input.checkIn,
+    roomOccupiedNow: Boolean(activeBooking),
+    now,
+  })
   const normalizedCheckOut = toLagosCheckOutInstant(input.checkOut)
 
   return prisma.booking.create({
@@ -59,33 +74,43 @@ export async function getRoomsOfTypeWithConflictingBookings(roomTypeId: string, 
   })
 }
 
+async function upsertAvailability(roomId: string, dayKey: string, isAvailable: boolean) {
+  const date = toUtcMidnightFromDayKey(dayKey)
+  await prisma.availability.upsert({
+    where: {
+      roomId_date: {
+        roomId,
+        date,
+      },
+    },
+    create: {
+      roomId,
+      date,
+      isAvailable,
+    },
+    update: {
+      isAvailable,
+    },
+  })
+}
+
 export async function updateAvailabilityForBookingRange(
   roomsOfType: Awaited<ReturnType<typeof getRoomsOfTypeWithConflictingBookings>>,
   checkIn: string,
   checkOut: string,
 ) {
   const days = iterateBookingDayKeys(checkIn, checkOut)
-  const roomIds = roomsOfType.map((room) => room.id)
 
   for (const dayKey of days) {
     const nextDayKey = epochDayToDayKey(dayKeyToEpochDay(dayKey) + 1)
-    const bookedRoomsCount = roomsOfType.filter((room) =>
-      room.bookings.some((booking) => bookingRangesOverlapByDay(dayKey, nextDayKey, booking.checkIn, booking.checkOut)),
-    ).length
-
-    const isAvailable = bookedRoomsCount < roomsOfType.length
-
-    await prisma.availability.updateMany({
-      where: {
-        roomId: {
-          in: roomIds,
-        },
-        date: toUtcMidnightFromDayKey(dayKey),
-      },
-      data: {
-        isAvailable,
-      },
-    })
+    await Promise.all(
+      roomsOfType.map(async (room) => {
+        const hasBooking = room.bookings.some((booking) =>
+          bookingRangesOverlapByDay(dayKey, nextDayKey, booking.checkIn, booking.checkOut),
+        )
+        await upsertAvailability(room.id, dayKey, !hasBooking)
+      }),
+    )
   }
 }
 
@@ -121,15 +146,7 @@ async function checkAvailability(roomId: string, startDate: Date, endDate: Date)
 async function updateRoomAvailability(roomId: string, startDate: Date, endDate: Date, isAvailable: boolean) {
   const dayKeys = iterateBookingDayKeys(startDate, endDate)
   for (const dayKey of dayKeys) {
-    await prisma.availability.updateMany({
-      where: {
-        roomId,
-        date: toUtcMidnightFromDayKey(dayKey),
-      },
-      data: {
-        isAvailable,
-      },
-    })
+    await upsertAvailability(roomId, dayKey, isAvailable)
   }
 }
 

@@ -6,6 +6,7 @@ export const CHECK_IN_HOUR = 12
 export const CHECK_IN_MINUTE = 45
 export const CHECK_OUT_HOUR = 11
 export const CHECK_OUT_MINUTE = 45
+export const IMMEDIATE_CHECK_IN_BUFFER_MINUTES = 30
 
 const dayKeyFormatter = new Intl.DateTimeFormat("en-CA", {
   timeZone: BOOKING_TIMEZONE,
@@ -101,6 +102,24 @@ export function toLagosCheckInInstant(input: Date | string) {
 
 export function toLagosCheckOutInstant(input: Date | string) {
   return toZonedInstant(toLagosBookingDayKey(input), CHECK_OUT_HOUR, CHECK_OUT_MINUTE)
+}
+
+export function resolveRoomCheckInInstant(input: {
+  requestedCheckIn: Date | string
+  roomOccupiedNow: boolean
+  now?: Date
+  immediateBufferMinutes?: number
+}) {
+  const now = input.now ?? new Date()
+  const requestedDay = toLagosBookingDayKey(input.requestedCheckIn)
+  const currentDay = toLagosBookingDayKey(now)
+
+  if (requestedDay !== currentDay || input.roomOccupiedNow) {
+    return toLagosCheckInInstant(requestedDay)
+  }
+
+  const bufferMinutes = input.immediateBufferMinutes ?? IMMEDIATE_CHECK_IN_BUFFER_MINUTES
+  return new Date(now.getTime() + bufferMinutes * 60 * 1000)
 }
 
 export function toUtcMidnightFromDayKey(dayKey: string) {
