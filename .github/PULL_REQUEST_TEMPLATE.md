@@ -15,7 +15,7 @@
 - [ ] Exactly one `scope_id` implemented in this PR
 - [ ] Changed file count is `<= 10` for this loop
 - [ ] No payment-critical files changed in this scope (or justified in Risk Notes):
-- [ ] `app/api/create-payment/route.ts`
+- [ ] `app/api/booking-requests/initiate/route.ts`
 - [ ] `app/api/verify-payment/route.ts`
 - [ ] `app/api/paystack-webhook/route.ts`
 - [ ] Relevant phase progress log updated (or N/A with reason): `progress/ralph-phase-e.md`

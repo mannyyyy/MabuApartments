@@ -354,7 +354,7 @@ export async function Reviews({ roomId }: ReviewsProps) {
 
 **Files Affected:**
 - `/app/api/create-booking/route.ts`
-- `/app/api/create-payment/route.ts`
+- `/app/api/booking-requests/initiate/route.ts`
 - `/app/api/check-availability/route.ts`
 - `/app/api/reviews/route.ts`
 

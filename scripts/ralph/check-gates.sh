@@ -14,7 +14,7 @@ run_gate() {
 }
 
 payment_routes_exist() {
-  test -f "app/api/create-payment/route.ts"
+  test -f "app/api/booking-requests/initiate/route.ts"
   test -f "app/api/verify-payment/route.ts"
   test -f "app/api/paystack-webhook/route.ts"
 }
@@ -43,4 +43,3 @@ case "$PROFILE" in
 esac
 
 echo "[gate] profile '$PROFILE' passed"
-

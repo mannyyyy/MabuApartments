@@ -18,8 +18,8 @@ Refactor the app into a production-safe Next.js App Router architecture without 
 - Keep `GET /api/reviews` for paginated public reads.
 - Move write mutations to Server Actions where practical.
 - Keep payment and webhook integration as API route handlers:
-- `POST /api/create-payment`
-- `POST /api/verify-payment`
+- `POST /api/booking-requests/initiate`
+- `GET /api/verify-payment`
 - `POST /api/paystack-webhook`
 - Consolidate Prisma client to a single shared module.
 - Remove direct `new PrismaClient()` usage from route handlers/services.
@@ -130,8 +130,8 @@ Refactor the app into a production-safe Next.js App Router architecture without 
 - `checkAvailability(input)`
 
 ### API Routes retained
-- `POST /api/create-payment`
-- `POST /api/verify-payment`
+- `POST /api/booking-requests/initiate`
+- `GET /api/verify-payment`
 - `POST /api/paystack-webhook`
 - `GET /api/reviews` (paginated read for infinite scroll compatibility)
 - `GET /api/unavailable-dates` (read path retained for current client hook compatibility)

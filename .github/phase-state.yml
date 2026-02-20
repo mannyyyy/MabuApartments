@@ -4,6 +4,6 @@ max_changed_files: 10
 enforce_payment_guard: true
 phase_progress_log: progress/ralph-phase-e.md
 payment_guard_files:
-  - app/api/create-payment/route.ts
+  - app/api/booking-requests/initiate/route.ts
   - app/api/verify-payment/route.ts
   - app/api/paystack-webhook/route.ts

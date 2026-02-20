@@ -22,6 +22,7 @@ type PaystackVerifyResponse = {
     status: string
     reference: string
     amount: number
+    currency: string
     paid_at: string | null
     metadata: Record<string, unknown>
     customer: {

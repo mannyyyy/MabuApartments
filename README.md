@@ -187,12 +187,11 @@ mabu-apartments/
 │   ├── api/               # API routes and webhooks
 │   │   ├── create-booking/
 │   │   ├── check-availability/
-│   │   ├── create-payment/
+│   │   ├── booking-requests/initiate/
 │   │   ├── verify-payment/
 │   │   ├── paystack-webhook/
 │   │   ├── reviews/
-│   │   ├── unavailable-dates/
-│   │   └── debug-bookings/    # DEBUG ENDPOINT (remove in production)
+│   │   └── unavailable-dates/
 │   ├── about/            # About page
 │   ├── bakery/            # Bakery page
 │   ├── booking-success/    # Booking success page
@@ -667,21 +666,30 @@ Get unavailable dates for a room type.
 
 ### Payment Endpoints
 
-#### `POST /api/create-payment`
+#### `POST /api/booking-requests/initiate`
 
-Initialize Paystack payment.
+Create a booking request and initialize Paystack payment.
 
 **Request Body**:
 
 ```typescript
 {
+  fullName: string
+  phoneNumber: string
   email: string
-  amount: number (in kobo - smallest currency unit)
-  metadata: {
-    roomId: string
-    name: string
-    checkIn: string
-    checkOut: string
+  arrivalDate: string
+  departureDate: string
+  roomTypeId: string
+  roomSpecification: string
+  heardAboutUs: string
+  guestType: "NEW" | "RETURNING"
+  gender: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY"
+  termsConsent: "ACCEPT"
+  officialId: {
+    url: string
+    mimeType: "application/pdf" | "image/jpeg" | "image/png" | "image/webp"
+    originalName: string
+    sizeBytes: number
   }
 }
 ```
@@ -690,36 +698,31 @@ Initialize Paystack payment.
 
 ```typescript
 {
-  authorization_url: string;
-  access_code: string;
-  reference: string;
+  bookingRequestId: string
+  authorization_url: string
+  access_code: string
+  reference: string
 }
 ```
 
-#### `POST /api/verify-payment`
+#### `GET /api/verify-payment?reference={reference}`
 
-Verify a Paystack payment.
-
-**Request Body**:
-
-```typescript
-{
-  reference: string;
-}
-```
+Verify payment state and booking confirmation status.
 
 **Response**:
 
 ```typescript
 {
-  status: string;
-  message: string;
-  data: {
-    amount: number;
-    customer: object;
-    metadata: object;
-    reference: string;
-  }
+  status: "success" | "error"
+  reference: string
+  amount: number | null
+  paidAt: string | null
+  paystackTransactionStatus: string | null
+  paystackVerified: boolean
+  bookingConfirmed: boolean
+  verificationState: "confirmed" | "processing" | "needs_review" | "failed" | "unknown"
+  bookingRequestStatus: string | null
+  reviewReason: string | null
 }
 ```
 
@@ -771,18 +774,6 @@ Submit a new review.
   review: Review;
 }
 ```
-
-### Debug Endpoints
-
-⚠️ **Security Warning**: Debug endpoints should be removed in production.
-
-#### `GET /api/debug-bookings`
-
-Returns recent bookings (for debugging).
-
-#### `GET /api/rooms/[slug]`
-
-Get room details by slug.
 
 ---
 
@@ -1018,7 +1009,7 @@ The current codebase has several areas that need improvement. See the detailed a
 
 1. **Security**
 
-   - Debug endpoints exposed (`/api/debug-bookings`)
+   - Upload and payment endpoints require strict abuse controls and observability
    - Missing input validation on API routes
    - Hardcoded contact information
    - Console.log statements in production

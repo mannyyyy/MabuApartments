@@ -100,11 +100,22 @@ export function BookingForm({ roomTypeId, price, title }: BookingFormProps) {
   )
 
   async function uploadOfficialId(file: File): Promise<UploadedOfficialId> {
+    const tokenResponse = await fetch("/api/uploads/official-id/token", {
+      method: "POST",
+    })
+    const tokenData = await tokenResponse.json()
+    if (!tokenResponse.ok || !tokenData.token) {
+      throw new Error(tokenData.message || "Could not start secure upload")
+    }
+
     const filePayload = new FormData()
     filePayload.append("file", file)
 
     const response = await fetch("/api/uploads/official-id", {
       method: "POST",
+      headers: {
+        "x-upload-token": tokenData.token as string,
+      },
       body: filePayload,
     })
 

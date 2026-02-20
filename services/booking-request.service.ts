@@ -30,7 +30,10 @@ export async function createBookingRequest(input: CreateBookingRequestInput, amo
 export async function saveBookingRequestPaymentReference(bookingRequestId: string, paymentReference: string) {
   return prisma.bookingRequest.update({
     where: { id: bookingRequestId },
-    data: { paymentReference },
+    data: {
+      paymentReference,
+      lastError: null,
+    },
   })
 }
 
@@ -60,6 +63,8 @@ export async function markBookingRequestAsPaid(input: {
   bookingRequestId: string
   paymentReference: string
   bookingId: string
+  verifiedAmountKobo?: number | null
+  verifiedCurrency?: string | null
 }) {
   return prisma.bookingRequest.update({
     where: { id: input.bookingRequestId },
@@ -67,13 +72,43 @@ export async function markBookingRequestAsPaid(input: {
       paymentStatus: "paid",
       paymentReference: input.paymentReference,
       bookingId: input.bookingId,
+      reviewReason: null,
+      lastError: null,
+      webhookReceivedAt: new Date(),
+      verifiedAmountKobo: input.verifiedAmountKobo ?? null,
+      verifiedCurrency: input.verifiedCurrency ?? null,
     },
   })
 }
 
-export async function markBookingRequestAsFailed(id: string) {
+export async function markBookingRequestAsFailed(id: string, reason?: string) {
   return prisma.bookingRequest.update({
     where: { id },
-    data: { paymentStatus: "failed" },
+    data: {
+      paymentStatus: "failed",
+      lastError: reason ?? null,
+    },
+  })
+}
+
+export async function markBookingRequestAsPaidNeedsReview(input: {
+  bookingRequestId: string
+  paymentReference: string
+  reviewReason: string
+  lastError?: string | null
+  verifiedAmountKobo?: number | null
+  verifiedCurrency?: string | null
+}) {
+  return prisma.bookingRequest.update({
+    where: { id: input.bookingRequestId },
+    data: {
+      paymentStatus: "paid_needs_review",
+      paymentReference: input.paymentReference,
+      reviewReason: input.reviewReason,
+      lastError: input.lastError ?? null,
+      webhookReceivedAt: new Date(),
+      verifiedAmountKobo: input.verifiedAmountKobo ?? null,
+      verifiedCurrency: input.verifiedCurrency ?? null,
+    },
   })
 }

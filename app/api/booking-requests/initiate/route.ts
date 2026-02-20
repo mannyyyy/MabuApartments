@@ -8,9 +8,36 @@ import {
   saveBookingRequestPaymentReference,
 } from "@/services/booking-request.service"
 import { initializePaystackTransaction } from "@/lib/payments/paystack"
+import { enforceRateLimit } from "@/lib/security/rate-limit-redis"
+import { getRequestIp } from "@/lib/security/request-ip"
+
+const INITIATE_WINDOW_MS = 10 * 60 * 1000
+const INITIATE_LIMIT = 6
+
+function getRetryAfterSeconds(resetAt: number) {
+  return Math.max(1, Math.ceil((resetAt - Date.now()) / 1000))
+}
 
 export async function POST(req: Request) {
   try {
+    const ip = getRequestIp(req)
+    const rateLimit = await enforceRateLimit({
+      bucket: "booking_request_initiate",
+      identifier: ip,
+      limit: INITIATE_LIMIT,
+      windowMs: INITIATE_WINDOW_MS,
+    })
+
+    if (rateLimit.limited) {
+      return NextResponse.json(
+        {
+          message: "Too many booking attempts. Please try again shortly.",
+          retryAfterSeconds: getRetryAfterSeconds(rateLimit.resetAt),
+        },
+        { status: 429 },
+      )
+    }
+
     const body = await req.json()
     const parsed = bookingRequestInitiateSchema.safeParse(body)
 
@@ -74,7 +101,9 @@ export async function POST(req: Request) {
         reference: payment.reference,
       })
     } catch (paymentError) {
-      await markBookingRequestAsFailed(bookingRequest.id)
+      const reason =
+        paymentError instanceof Error ? paymentError.message : "Payment initialization failed"
+      await markBookingRequestAsFailed(bookingRequest.id, reason)
       throw paymentError
     }
   } catch (error) {
