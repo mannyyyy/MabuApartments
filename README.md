@@ -841,6 +841,14 @@ Submit a new review.
 - If local file access is unavailable in serverless runtime, the sender fetches `/images/MABU.png` and still attaches it inline.
 - This avoids most client-side remote image blocking for the header logo.
 
+### Booking Time Policy
+
+- Canonical booking timezone is `Africa/Lagos` (WAT).
+- Checkout cutoff is `11:45 AM` WAT.
+- Next check-in is allowed from `12:45 PM` WAT (1-hour cleaning window).
+- Availability uses day ranges with checkout day reusable for same-day turnover.
+- Guests browsing from other timezones (for example, the US) still book against Lagos date rules.
+
 ---
 
 ## Documentation

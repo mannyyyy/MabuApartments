@@ -22,6 +22,13 @@ It covers:
 7. Client polls `GET /api/verify-payment?reference=...` from `/payment-success`.
 8. Confirmation email is sent with inline CID logo attachment.
 
+## Booking Time Policy
+
+- Canonical timezone: `Africa/Lagos` (WAT)
+- Checkout time: `11:45 AM` WAT
+- Earliest next check-in: `12:45 PM` WAT (1-hour cleaning window)
+- Availability semantics: `[check-in day, check-out day)` so checkout day is reusable for same-day turnover
+
 ## Environment Requirements
 
 ### Key Separation Policy
