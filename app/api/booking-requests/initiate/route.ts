@@ -18,6 +18,7 @@ import {
 } from "@/lib/payments/paystack"
 import { enforceRateLimit } from "@/lib/security/rate-limit-redis"
 import { getRequestIp } from "@/lib/security/request-ip"
+import { dayKeyToEpochDay } from "@/lib/booking-time-policy"
 
 const INITIATE_WINDOW_MS = 10 * 60 * 1000
 const INITIATE_LIMIT = 6
@@ -99,10 +100,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid room type selected" }, { status: 400 })
     }
 
-    const arrivalDate = new Date(input.arrivalDate)
-    const departureDate = new Date(input.departureDate)
-    const stayMs = departureDate.getTime() - arrivalDate.getTime()
-    const nights = Math.max(1, Math.ceil(stayMs / (1000 * 60 * 60 * 24)))
+    const nights = dayKeyToEpochDay(input.departureDate) - dayKeyToEpochDay(input.arrivalDate)
     const amountKobo = Math.round(roomType.price * nights * 100)
 
     const reusableBookingRequest = await findLatestReusableBookingRequest({
