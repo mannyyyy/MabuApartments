@@ -4,10 +4,18 @@ import { bookingRequestInitiateSchema } from "@/lib/validators/booking-request.s
 import { findAvailableRoom } from "@/services/availability.service"
 import {
   createBookingRequest,
+  findLatestReusableBookingRequest,
   markBookingRequestAsFailed,
+  prepareBookingRequestForPaymentRetry,
+  recordBookingRequestInitError,
   saveBookingRequestPaymentReference,
 } from "@/services/booking-request.service"
-import { initializePaystackTransaction } from "@/lib/payments/paystack"
+import {
+  initializePaystackTransaction,
+  PaymentInitNonRetryableError,
+  PaymentInitRetryableError,
+  PaymentInitTimeoutError,
+} from "@/lib/payments/paystack"
 import { enforceRateLimit } from "@/lib/security/rate-limit-redis"
 import { getRequestIp } from "@/lib/security/request-ip"
 
@@ -77,7 +85,17 @@ export async function POST(req: Request) {
     const nights = Math.max(1, Math.ceil(stayMs / (1000 * 60 * 60 * 24)))
     const amountKobo = Math.round(roomType.price * nights * 100)
 
-    const bookingRequest = await createBookingRequest(input, amountKobo)
+    const reusableBookingRequest = await findLatestReusableBookingRequest({
+      email: input.email,
+      roomTypeId: input.roomTypeId,
+      arrivalDate: input.arrivalDate,
+      departureDate: input.departureDate,
+      amountKobo,
+    })
+
+    const bookingRequest = reusableBookingRequest
+      ? await prepareBookingRequestForPaymentRetry(reusableBookingRequest.id)
+      : await createBookingRequest(input, amountKobo)
 
     try {
       const payment = await initializePaystackTransaction({
@@ -103,7 +121,35 @@ export async function POST(req: Request) {
     } catch (paymentError) {
       const reason =
         paymentError instanceof Error ? paymentError.message : "Payment initialization failed"
+      if (
+        paymentError instanceof PaymentInitTimeoutError ||
+        paymentError instanceof PaymentInitRetryableError
+      ) {
+        await recordBookingRequestInitError(bookingRequest.id, reason)
+        return NextResponse.json(
+          {
+            message: "Payment provider is temporarily unavailable. Please try again.",
+            retryable: true,
+            code: "PAYMENT_INIT_TEMPORARY_UNAVAILABLE",
+            bookingRequestId: bookingRequest.id,
+          },
+          { status: 503 },
+        )
+      }
+
       await markBookingRequestAsFailed(bookingRequest.id, reason)
+      if (paymentError instanceof PaymentInitNonRetryableError) {
+        return NextResponse.json(
+          {
+            message: reason,
+            retryable: false,
+            code: "PAYMENT_INIT_REJECTED",
+            bookingRequestId: bookingRequest.id,
+          },
+          { status: 502 },
+        )
+      }
+
       throw paymentError
     }
   } catch (error) {
