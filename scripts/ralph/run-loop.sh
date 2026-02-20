@@ -221,7 +221,7 @@ fi
 if [[ "$status" == "done" ]]; then
   while IFS= read -r file; do
     [[ -z "$file" ]] && continue
-    if [[ "$file" =~ ^app/api/(create-payment|verify-payment|paystack-webhook)/route\.ts$ ]]; then
+    if [[ "$file" =~ ^app/api/(booking-requests/initiate|verify-payment|paystack-webhook)/route\.ts$ ]]; then
       status="blocked"
       gate_result="skipped"
       notes="Payment-critical file modified in Phase A: $file"

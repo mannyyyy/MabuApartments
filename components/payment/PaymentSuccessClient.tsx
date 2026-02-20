@@ -2,48 +2,99 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { CheckCircle, Clock3, XCircle } from "lucide-react"
+import { AlertTriangle, CheckCircle, Clock3, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 type VerifyResponse = {
   status: "success" | "error"
-  reference?: string
+  verificationState?: "confirmed" | "processing" | "needs_review" | "failed" | "unknown"
+  reviewReason?: string | null
   bookingConfirmed?: boolean
   message?: string
 }
 
+const POLL_INTERVAL_MS = 3000
+const MAX_POLL_ATTEMPTS = 20
+
 export function PaymentSuccessClient() {
-  const [status, setStatus] = useState<"confirmed" | "processing" | "failure" | "loading">("loading")
+  const [status, setStatus] = useState<
+    "confirmed" | "processing" | "needs_review" | "failure" | "loading"
+  >("loading")
   const [reference, setReference] = useState<string | null>(null)
+  const [reviewReason, setReviewReason] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
 
   useEffect(() => {
     const ref = searchParams.get("reference")
     setReference(ref)
+    setReviewReason(null)
 
     if (!ref) {
       setStatus("failure")
       return
     }
 
-    fetch(`/api/verify-payment?reference=${encodeURIComponent(ref)}`)
-      .then((res) => {
+    let cancelled = false
+
+    const pollVerification = async (attempt = 1): Promise<void> => {
+      if (cancelled) {
+        return
+      }
+
+      try {
+        const res = await fetch(`/api/verify-payment?reference=${encodeURIComponent(ref)}`, {
+          cache: "no-store",
+        })
         if (!res.ok) {
           throw new Error(`API returned status ${res.status}`)
         }
-        return res.json() as Promise<VerifyResponse>
-      })
-      .then((data) => {
+
+        const data = (await res.json()) as VerifyResponse
         if (data.status !== "success") {
           throw new Error(data.message || "Payment verification failed")
         }
-        setStatus(data.bookingConfirmed ? "confirmed" : "processing")
-      })
-      .catch((error) => {
+
+        const verificationState = data.verificationState ?? "unknown"
+        if (verificationState === "confirmed" || data.bookingConfirmed) {
+          setStatus("confirmed")
+          return
+        }
+
+        if (verificationState === "needs_review") {
+          setReviewReason(data.reviewReason ?? null)
+          setStatus("needs_review")
+          return
+        }
+
+        if (verificationState === "failed") {
+          setStatus("failure")
+          return
+        }
+
+        setStatus("processing")
+
+        if (attempt < MAX_POLL_ATTEMPTS) {
+          window.setTimeout(() => {
+            void pollVerification(attempt + 1)
+          }, POLL_INTERVAL_MS)
+        }
+      } catch (error) {
         console.error("Error in payment verification:", error)
+        if (attempt < 3) {
+          window.setTimeout(() => {
+            void pollVerification(attempt + 1)
+          }, POLL_INTERVAL_MS)
+          return
+        }
         setStatus("failure")
-      })
+      }
+    }
+
+    void pollVerification()
+    return () => {
+      cancelled = true
+    }
   }, [searchParams])
 
   return (
@@ -66,6 +117,19 @@ export function PaymentSuccessClient() {
             <p className="text-gray-600 mb-4">
               Your payment was received. We are finalizing your booking and you will get confirmation shortly.
             </p>
+            {reference && <p className="text-sm text-gray-500 mb-4">Reference: {reference}</p>}
+            <Button onClick={() => router.push("/")}>Return to Home</Button>
+          </>
+        ) : status === "needs_review" ? (
+          <>
+            <AlertTriangle className="mx-auto h-16 w-16 text-amber-600 mb-4" />
+            <h1 className="text-2xl font-bold mb-2">Payment Received, Manual Review Required</h1>
+            <p className="text-gray-600 mb-4">
+              Your payment has been received, but we need to manually confirm your booking details.
+            </p>
+            {reviewReason && (
+              <p className="text-sm text-gray-500 mb-4 break-words">Reason: {reviewReason}</p>
+            )}
             {reference && <p className="text-sm text-gray-500 mb-4">Reference: {reference}</p>}
             <Button onClick={() => router.push("/")}>Return to Home</Button>
           </>

@@ -11,6 +11,7 @@ datasource db {
 enum BookingRequestPaymentStatus {
   initiated
   paid
+  paid_needs_review
   failed
   expired
 }
@@ -89,6 +90,11 @@ model BookingRequest {
   paymentStatus          BookingRequestPaymentStatus @default(initiated)
   paymentReference       String?                     @unique
   bookingId              String?                     @unique
+  reviewReason           String?
+  lastError              String?
+  webhookReceivedAt      DateTime?
+  verifiedAmountKobo     Int?
+  verifiedCurrency       String?
   booking                Booking?                    @relation(fields: [bookingId], references: [id])
   createdAt              DateTime                    @default(now())
   updatedAt              DateTime                    @updatedAt

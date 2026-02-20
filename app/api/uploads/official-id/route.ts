@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server"
 import { v2 as cloudinary } from "cloudinary"
 import { officialIdUploadSchema } from "@/lib/validators/booking-request.schema"
+import { enforceRateLimit } from "@/lib/security/rate-limit-redis"
+import { getRequestIp } from "@/lib/security/request-ip"
+import { consumeOfficialIdUploadToken } from "@/lib/security/upload-token"
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+const UPLOAD_WINDOW_MS = 10 * 60 * 1000
+const UPLOAD_LIMIT = 8
 
 function getCloudinaryConfig() {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME
@@ -50,8 +55,40 @@ async function uploadBufferToCloudinary(buffer: Buffer, filename: string, mimeTy
   })
 }
 
+function getRetryAfterSeconds(resetAt: number) {
+  return Math.max(1, Math.ceil((resetAt - Date.now()) / 1000))
+}
+
 export async function POST(req: Request) {
   try {
+    const ip = getRequestIp(req)
+    const rateLimit = await enforceRateLimit({
+      bucket: "official_id_upload",
+      identifier: ip,
+      limit: UPLOAD_LIMIT,
+      windowMs: UPLOAD_WINDOW_MS,
+    })
+
+    if (rateLimit.limited) {
+      return NextResponse.json(
+        {
+          message: "Too many upload attempts. Please try again shortly.",
+          retryAfterSeconds: getRetryAfterSeconds(rateLimit.resetAt),
+        },
+        { status: 429 },
+      )
+    }
+
+    const token = req.headers.get("x-upload-token")
+    if (!token) {
+      return NextResponse.json({ message: "Missing upload token" }, { status: 401 })
+    }
+
+    const tokenResult = await consumeOfficialIdUploadToken(token, ip)
+    if (!tokenResult.valid) {
+      return NextResponse.json({ message: "Invalid or expired upload token" }, { status: 401 })
+    }
+
     const formData = await req.formData()
     const file = formData.get("file")
 

@@ -19,6 +19,7 @@ export type ReconciliationIssueCode =
   | "DUPLICATE_PAYMENT_REFERENCE"
   | "STALE_PENDING_PAYMENT"
   | "PAID_REQUEST_WITHOUT_BOOKING"
+  | "PAID_REQUEST_NEEDS_REVIEW"
   | "STALE_INITIATED_REQUEST"
 
 export type ReconciliationIssue = {
@@ -34,6 +35,7 @@ export type ReconciliationSummary = {
   paidBookings: number
   pendingBookings: number
   initiatedBookingRequests: number
+  reviewBookingRequests: number
   issueCount: number
 }
 
@@ -70,6 +72,7 @@ export function analyzePaymentConsistency(
   let paidBookings = 0
   let pendingBookings = 0
   let initiatedBookingRequests = 0
+  let reviewBookingRequests = 0
 
   for (const booking of bookings) {
     const status = normalizeStatus(booking.paymentStatus)
@@ -127,6 +130,15 @@ export function analyzePaymentConsistency(
       })
     }
 
+    if (status === "paid_needs_review") {
+      reviewBookingRequests += 1
+      issues.push({
+        code: "PAID_REQUEST_NEEDS_REVIEW",
+        message: `Booking request ${request.id} requires manual payment review.`,
+        bookingIds: [request.id],
+      })
+    }
+
     if (reference) {
       const existing = referenceToEntities.get(reference) ?? []
       existing.push(`request:${request.id}`)
@@ -152,6 +164,7 @@ export function analyzePaymentConsistency(
       paidBookings,
       pendingBookings,
       initiatedBookingRequests,
+      reviewBookingRequests,
       issueCount: issues.length,
     },
     issues,
@@ -166,6 +179,7 @@ export function formatReconciliationReport(result: ReconciliationResult) {
     `Paid bookings: ${result.summary.paidBookings}`,
     `Pending bookings: ${result.summary.pendingBookings}`,
     `Initiated booking requests: ${result.summary.initiatedBookingRequests}`,
+    `Review booking requests: ${result.summary.reviewBookingRequests}`,
     `Issues found: ${result.summary.issueCount}`,
   ]
 

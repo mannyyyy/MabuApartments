@@ -5,7 +5,7 @@ Hard constraints:
 - Do not expand to other phases.
 - Keep behavior unchanged unless required by the scope.
 - Do not modify payment-critical files in Phase A:
-  - app/api/create-payment/route.ts
+  - app/api/booking-requests/initiate/route.ts
   - app/api/verify-payment/route.ts
   - app/api/paystack-webhook/route.ts
 - Keep changes small and reversible.
@@ -35,4 +35,3 @@ Output format:
   - <risk or none>
 - Next Step:
   - <next scope or completion note>
-
