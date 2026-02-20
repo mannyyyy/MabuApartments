@@ -34,7 +34,7 @@ function generateBookingEmailTemplate(bookingDetails: any) {
                 <!-- Header -->
                 <tr>
                   <td style="padding: 40px 40px 20px 40px; text-align: center;">
-                    <img src="${process.env.NEXT_PUBLIC_APP_URL}/images/logo.png" alt="Mabu Apartments" style="width: 150px; height: auto;">
+                    <img src="${process.env.NEXT_PUBLIC_APP_URL}/images/mabu-logo.PNG" alt="Mabu Apartments" style="width: 150px; height: auto;">
                     <h1 style="color: #333; margin: 20px 0; font-size: 28px;">Booking Confirmation</h1>
                   </td>
                 </tr>
@@ -365,4 +365,3 @@ export async function sendContactFormEmail(formData: any) {
 
   await transporter.sendMail(mailOptions)
 }
-
