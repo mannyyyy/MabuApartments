@@ -12,7 +12,7 @@
 - autonomy: `HITL`
 
 ## Current Pointer
-- active_scope_id: `E6_NON_RALPH_SCRIPT_RATIONALIZATION`
+- active_scope_id: `E7_PAYMENT_FLOW_HARDENING_AND_UNUSED_ENDPOINT_REMOVAL`
 - active_status: `done`
 
 ## Iteration Log
@@ -59,3 +59,9 @@
 - gate_results: pass
 - next_scope_id: TBD
 - notes: Merged PR #32: Feat/script rationalization non ralph
+
+
+### 2026-02-20T00:32:24Z | scope_id=E7_PAYMENT_FLOW_HARDENING_AND_UNUSED_ENDPOINT_REMOVAL | status=done
+- gate_results: pass
+- next_scope_id: TBD
+- notes: Merged PR #33: feat: harden payment flow and remove unused api routes
