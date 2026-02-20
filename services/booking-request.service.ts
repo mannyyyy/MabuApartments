@@ -3,6 +3,20 @@ import type { BookingRequestInitiateInput } from "@/lib/validators/booking-reque
 
 type CreateBookingRequestInput = BookingRequestInitiateInput
 
+function getReuseWindowMinutes() {
+  const raw = process.env.BOOKING_REQUEST_REUSE_WINDOW_MINUTES
+  if (!raw) {
+    return 10
+  }
+
+  const parsed = Number(raw)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 10
+  }
+
+  return Math.floor(parsed)
+}
+
 export async function createBookingRequest(input: CreateBookingRequestInput, amountKobo: number) {
   return prisma.bookingRequest.create({
     data: {
@@ -31,6 +45,7 @@ export async function saveBookingRequestPaymentReference(bookingRequestId: strin
   return prisma.bookingRequest.update({
     where: { id: bookingRequestId },
     data: {
+      paymentStatus: "initiated",
       paymentReference,
       lastError: null,
     },
@@ -57,6 +72,55 @@ export async function getBookingRequestByIdOrReference(id: string | null, refere
     }
   }
   return getBookingRequestByReference(reference)
+}
+
+export async function findLatestReusableBookingRequest(input: {
+  email: string
+  roomTypeId: string
+  arrivalDate: string
+  departureDate: string
+  amountKobo: number
+}) {
+  const createdAfter = new Date(Date.now() - getReuseWindowMinutes() * 60 * 1000)
+
+  return prisma.bookingRequest.findFirst({
+    where: {
+      email: input.email,
+      roomTypeId: input.roomTypeId,
+      arrivalDate: new Date(input.arrivalDate),
+      departureDate: new Date(input.departureDate),
+      amountKobo: input.amountKobo,
+      paymentReference: null,
+      paymentStatus: {
+        in: ["initiated", "failed"],
+      },
+      createdAt: {
+        gte: createdAfter,
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  })
+}
+
+export async function prepareBookingRequestForPaymentRetry(id: string) {
+  return prisma.bookingRequest.update({
+    where: { id },
+    data: {
+      paymentStatus: "initiated",
+      lastError: null,
+    },
+  })
+}
+
+export async function recordBookingRequestInitError(id: string, reason: string) {
+  return prisma.bookingRequest.update({
+    where: { id },
+    data: {
+      lastError: reason,
+    },
+  })
 }
 
 export async function markBookingRequestAsPaid(input: {

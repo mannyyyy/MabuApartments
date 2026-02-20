@@ -37,6 +37,8 @@ export async function GET(req: Request): Promise<Response> {
   try {
     const url = new URL(req.url)
     const reference = url.searchParams.get("reference")
+    const environment = process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown"
+    const host = url.host
 
     if (!reference) {
       return NextResponse.json({ status: "error", message: "Missing reference parameter" }, { status: 400 })
@@ -68,7 +70,12 @@ export async function GET(req: Request): Promise<Response> {
     try {
       paystackData = await verifyPaystackTransaction(reference)
     } catch (error) {
-      console.error("Paystack verify failed during status polling", error)
+      console.error("Paystack verify failed during status polling", {
+        reference,
+        host,
+        environment,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
 
     return NextResponse.json({

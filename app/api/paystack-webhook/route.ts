@@ -55,10 +55,17 @@ function errorMessage(error: unknown) {
 
 export async function POST(req: Request) {
   try {
+    const requestUrl = new URL(req.url)
+    const environment = process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown"
     const rawBody = await req.text()
     const signature = req.headers.get("x-paystack-signature")
 
     if (!signatureMatches(rawBody, signature)) {
+      console.warn("Rejected Paystack webhook due to invalid signature", {
+        host: requestUrl.host,
+        environment,
+        hasSignature: Boolean(signature),
+      })
       return NextResponse.json({ message: "Invalid signature" }, { status: 400 })
     }
 
@@ -69,16 +76,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid JSON payload" }, { status: 400 })
     }
 
-    if (event.event !== "charge.success" || !event.data?.reference) {
+    const reference = event.data?.reference?.trim() ?? null
+    const bookingRequestId = readBookingRequestId(event.data?.metadata)
+    console.info("Received Paystack webhook event", {
+      host: requestUrl.host,
+      environment,
+      event: event.event,
+      reference,
+      bookingRequestId,
+    })
+
+    if (event.event !== "charge.success" || !reference) {
       return NextResponse.json({ received: true })
     }
 
-    const paymentReference = event.data.reference.trim()
-    if (!paymentReference) {
-      return NextResponse.json({ received: true })
-    }
-
-    const bookingRequestId = readBookingRequestId(event.data.metadata)
+    const paymentReference = reference
     const bookingRequest = await getBookingRequestByIdOrReference(bookingRequestId, paymentReference)
 
     if (!bookingRequest) {

@@ -29,6 +29,11 @@ type UploadedOfficialId = {
   sizeBytes: number
 }
 
+function toUtcNoonISOString(date: Date) {
+  // Normalize day-only selections to noon UTC to avoid timezone rollbacks to the previous day.
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0)).toISOString()
+}
+
 export function BookingForm({ roomTypeId, price, title }: BookingFormProps) {
   const [dateRange, setDateRange] = useState<BookingDateRange>({
     from: undefined,
@@ -149,10 +154,13 @@ export function BookingForm({ roomTypeId, price, title }: BookingFormProps) {
         return
       }
 
+      const arrivalDateIso = toUtcNoonISOString(values.dateRange.from)
+      const departureDateIso = toUtcNoonISOString(values.dateRange.to)
+
       const availabilityData = await checkAvailabilityAction({
         roomTypeId,
-        checkIn: values.dateRange.from.toISOString(),
-        checkOut: values.dateRange.to.toISOString(),
+        checkIn: arrivalDateIso,
+        checkOut: departureDateIso,
       })
 
       if (!availabilityData.available) {
@@ -173,8 +181,8 @@ export function BookingForm({ roomTypeId, price, title }: BookingFormProps) {
           fullName: values.fullName,
           phoneNumber: values.phoneNumber,
           email: values.email,
-          arrivalDate: values.dateRange.from.toISOString(),
-          departureDate: values.dateRange.to.toISOString(),
+          arrivalDate: arrivalDateIso,
+          departureDate: departureDateIso,
           roomTypeId,
           roomSpecification: values.roomSpecification,
           heardAboutUs: values.heardAboutUs,
@@ -189,14 +197,33 @@ export function BookingForm({ roomTypeId, price, title }: BookingFormProps) {
 
       if (paymentResponse.ok && paymentData.authorization_url) {
         window.location.href = paymentData.authorization_url
-      } else {
-        throw new Error(paymentData.message || "Payment initialization failed")
+        return
       }
+
+      if (paymentResponse.status === 400 && paymentData?.errors?.fieldErrors) {
+        const fieldErrors = paymentData.errors.fieldErrors as Record<string, string[] | undefined>
+        const firstFieldMessage = Object.values(fieldErrors).flat().find(Boolean)
+        throw new Error(firstFieldMessage || paymentData.message || "Invalid booking request payload")
+      }
+
+      if (paymentData.retryable) {
+        toast({
+          title: "Payment provider is temporarily unavailable",
+          description: paymentData.message || "Please try again in a moment.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      throw new Error(paymentData.message || "Payment initialization failed")
     } catch (error) {
       console.error(error)
       toast({
         title: "Error",
-        description: "An error occurred during the booking process. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "An error occurred during the booking process. Please try again.",
         variant: "destructive",
       })
     } finally {
