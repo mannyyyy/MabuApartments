@@ -35,6 +35,38 @@ test.after(() => {
   process.env.PAYSTACK_INIT_RETRY_BASE_MS = originalEnv.PAYSTACK_INIT_RETRY_BASE_MS
 })
 
+test("initializePaystackTransaction uses callback base URL override", async () => {
+  let callbackUrl: string | null = null
+
+  global.fetch = (async (_input, init) => {
+    const payload = JSON.parse(String(init?.body)) as { callback_url?: string }
+    callbackUrl = payload.callback_url ?? null
+    return new Response(
+      JSON.stringify({
+        status: true,
+        message: "ok",
+        data: {
+          authorization_url: "https://checkout.paystack.co/xyz",
+          access_code: "access_123",
+          reference: "ref_123",
+        },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    )
+  }) as typeof fetch
+
+  await initializePaystackTransaction(
+    {
+      email: "guest@example.com",
+      amount: 10000,
+      metadata: { bookingRequestId: "req_0" },
+    },
+    { callbackBaseUrl: "https://preview.example.com/" },
+  )
+
+  assert.equal(callbackUrl, "https://preview.example.com/payment-success")
+})
+
 test("initializePaystackTransaction retries transient network failure and succeeds", async () => {
   let attempts = 0
   global.fetch = (async () => {

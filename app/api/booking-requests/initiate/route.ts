@@ -26,6 +26,26 @@ function getRetryAfterSeconds(resetAt: number) {
   return Math.max(1, Math.ceil((resetAt - Date.now()) / 1000))
 }
 
+function readForwardedValue(raw: string | null) {
+  if (!raw) {
+    return null
+  }
+
+  const firstValue = raw.split(",")[0]?.trim()
+  return firstValue && firstValue.length > 0 ? firstValue : null
+}
+
+function deriveCallbackBaseUrl(req: Request) {
+  const forwardedHost = readForwardedValue(req.headers.get("x-forwarded-host"))
+  const forwardedProto = readForwardedValue(req.headers.get("x-forwarded-proto")) ?? "https"
+
+  if (forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`
+  }
+
+  return new URL(req.url).origin
+}
+
 export async function POST(req: Request) {
   try {
     const ip = getRequestIp(req)
@@ -98,6 +118,13 @@ export async function POST(req: Request) {
       : await createBookingRequest(input, amountKobo)
 
     try {
+      const callbackBaseUrl = deriveCallbackBaseUrl(req)
+      console.info("Initializing Paystack transaction", {
+        bookingRequestId: bookingRequest.id,
+        callbackBaseUrl,
+        environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown",
+      })
+
       const payment = await initializePaystackTransaction({
         email: input.email,
         amount: amountKobo,
@@ -108,7 +135,7 @@ export async function POST(req: Request) {
           arrivalDate: input.arrivalDate,
           departureDate: input.departureDate,
         },
-      })
+      }, { callbackBaseUrl })
 
       await saveBookingRequestPaymentReference(bookingRequest.id, payment.reference)
 

@@ -13,6 +13,7 @@ A luxury apartment booking platform built with Next.js 15.1.3, featuring room re
 - [Environment Variables](#environment-variables)
 - [Database Schema](#database-schema)
 - [API Endpoints](#api-endpoints)
+- [Payment Operations](#payment-operations)
 - [Documentation](#documentation)
 - [Deployment](#deployment)
 - [Contributing](#contributing)
@@ -273,9 +274,10 @@ mabu-apartments/
 │   │   └── reconcile-payments.ts
 │   └── README.md
 │
-├── docs/                    # Documentation (newly created)
-│   ├── refactoring-plan.md       # Comprehensive refactoring plan
-│   └── code-analysis.md         # Best practices code analysis
+├── docs/                    # Documentation
+│   ├── REFACTORING_PLAN.md       # Comprehensive refactoring plan
+│   ├── CODE_ANALYSIS.md          # Best practices code analysis
+│   └── ops/                      # Operational runbooks and policies
 │
 ├── public/                  # Static assets
 │   ├── images/           # Image assets
@@ -477,7 +479,7 @@ CONTACT_FORM_RECIPIENT="manager@mabuapartments.com"
 
 # Payment Gateway (Paystack)
 PAYSTACK_SECRET_KEY="your-paystack-secret-key"
-PAYSTACK_PUBLIC_KEY="your-paystack-public-key"
+NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY="your-paystack-public-key"
 
 # Application URLs
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
@@ -492,6 +494,18 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```bash
 NODE_ENV="development"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
+PAYSTACK_SECRET_KEY="sk_test_xxx"
+NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY="pk_test_xxx"
+```
+
+#### Preview
+
+```bash
+NODE_ENV="production"
+VERCEL_ENV="preview"
+NEXT_PUBLIC_APP_URL="https://<preview-domain>.vercel.app"
+PAYSTACK_SECRET_KEY="sk_test_xxx"
+NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY="pk_test_xxx"
 ```
 
 #### Production
@@ -499,6 +513,8 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```bash
 NODE_ENV="production"
 NEXT_PUBLIC_APP_URL="https://mabuapartments.com"
+PAYSTACK_SECRET_KEY="sk_live_xxx"
+NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY="pk_live_xxx"
 ```
 
 **Security Notes**:
@@ -507,6 +523,7 @@ NEXT_PUBLIC_APP_URL="https://mabuapartments.com"
 - Use `.env.example` as a template
 - Rotate secret keys regularly
 - Use `NEXT_PUBLIC_` prefix only for client-side safe values
+- Follow `docs/ops/vercel-env-policy.md` for Vercel environment separation
 
 ---
 
@@ -705,6 +722,12 @@ Create a booking request and initialize Paystack payment.
 }
 ```
 
+**Operational Notes**:
+
+- Callback URL is set server-side per request as `{request-origin}/payment-success`.
+- Callback base URL is derived from `x-forwarded-host` and `x-forwarded-proto` when available.
+- This prevents preview/test payments from redirecting into a production callback route.
+
 #### `GET /api/verify-payment?reference={reference}`
 
 Verify payment state and booking confirmation status.
@@ -726,6 +749,11 @@ Verify payment state and booking confirmation status.
 }
 ```
 
+**Operational Notes**:
+
+- This endpoint is safe for client polling after redirect to `/payment-success`.
+- If Paystack verification is temporarily unavailable, it still returns booking request state from DB.
+
 #### `POST /api/paystack-webhook`
 
 Paystack webhook for payment notifications.
@@ -735,6 +763,13 @@ Paystack webhook for payment notifications.
 - `x-paystack-signature`: HMAC signature for verification
 
 **Request Body**: Paystack webhook payload
+
+**Operational Notes**:
+
+- Only signed requests are accepted (HMAC SHA-512 with `PAYSTACK_SECRET_KEY`).
+- Only `charge.success` events with a `reference` trigger booking fulfillment.
+- Duplicate webhook deliveries are handled idempotently.
+- Invalid signature rejections are logged with host/environment context.
 
 ### Review Endpoints
 
@@ -777,13 +812,44 @@ Submit a new review.
 
 ---
 
+## Payment Operations
+
+### Paystack URL Configuration
+
+| Environment | Booking URL used by users | Callback behavior | Webhook URL in Paystack dashboard | Paystack keys |
+| --- | --- | --- | --- | --- |
+| `development` | `http://localhost:3000` (or local tunnel) | Auto-set by API request origin | Use a publicly reachable tunnel URL when testing webhooks | `sk_test_*` + `pk_test_*` |
+| `preview` | Vercel preview URL | Auto-set by API request origin | If deployment protection is enabled, append `?x-vercel-protection-bypass=<token>` | `sk_test_*` + `pk_test_*` |
+| `production` | `https://www.mabuapartments.com` | Auto-set by API request origin | `https://www.mabuapartments.com/api/paystack-webhook` | `sk_live_*` + `pk_live_*` |
+
+### Callback URL vs Webhook URL
+
+- Callback URL is passed in each `transaction/initialize` call by `POST /api/booking-requests/initiate`.
+- Dashboard callback URL is optional fallback because the API call supplies `callback_url`.
+- Webhook URL is dashboard-controlled and must be set correctly for each Paystack mode.
+
+### Vercel Preview Protection
+
+- If Vercel deployment protection is enabled for previews, Paystack cannot complete the protection challenge.
+- Direct preview webhook calls will fail before reaching your app (commonly `401`).
+- For preview webhook testing, use protection bypass query parameter: `https://<preview-domain>/api/paystack-webhook?x-vercel-protection-bypass=<token>`.
+- Keep bypass token secret and rotate it if exposed.
+
+### Booking Email Image Delivery
+
+- Booking confirmation emails embed `public/images/MABU.png` as an inline CID attachment.
+- If local file access is unavailable in serverless runtime, the sender fetches `/images/MABU.png` and still attaches it inline.
+- This avoids most client-side remote image blocking for the header logo.
+
+---
+
 ## Documentation
 
 ### Comprehensive Documentation
 
 The project includes detailed documentation to guide development and refactoring:
 
-#### 📋 [Refactoring Plan](docs/refactoring-plan.md)
+#### 📋 [Refactoring Plan](docs/REFACTORING_PLAN.md)
 
 **Complete refactoring roadmap to achieve production-grade standards**
 
@@ -807,7 +873,7 @@ A 4-week implementation plan addressing:
 - Success criteria
 - Risk mitigation strategies
 
-#### 📊 [Code Analysis](docs/code-analysis.md)
+#### 📊 [Code Analysis](docs/CODE_ANALYSIS.md)
 
 **Best practices evaluation of current codebase**
 
@@ -838,6 +904,12 @@ Comprehensive analysis covering:
 - Common anti-patterns to avoid
 - Recommended next steps prioritized by severity
 
+### Operations Documentation
+
+- [Vercel Environment Policy](docs/ops/vercel-env-policy.md)
+- [Payment Runbook](docs/ops/payment-runbook.md)
+- [Payment and Email Incident Log](docs/ops/payment-email-incident-log.md)
+
 ---
 
 ## Deployment
@@ -866,8 +938,13 @@ The project is configured for Vercel deployment via `vercel.json`.
 
    - Go to Vercel dashboard → Project Settings → Environment Variables
    - Add all required variables from [Environment Variables](#environment-variables)
-   - Ensure `PAYSTACK_SECRET_KEY` is NOT marked public
-   - Add `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` as public variable
+   - Ensure `PAYSTACK_SECRET_KEY` is server-only
+   - Set Paystack test keys in `development` and `preview`
+   - Set Paystack live keys in `production`
+   - Use `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` for client-side Paystack key
+   - For preview webhook testing under deployment protection, use a protection bypass token in the webhook URL
+   - Confirm webhook/callback policy in `docs/ops/payment-runbook.md`
+   - Redeploy after any environment variable change
 
 3. **Deploy**
 
@@ -1003,7 +1080,7 @@ For new features:
 
 ### Known Issues & Improvements Needed
 
-The current codebase has several areas that need improvement. See the detailed analysis in [Code Analysis](docs/code-analysis.md) for specific issues and solutions.
+The current codebase has several areas that need improvement. See the detailed analysis in [Code Analysis](docs/CODE_ANALYSIS.md) for specific issues and solutions.
 
 #### High Priority Issues
 
@@ -1039,7 +1116,7 @@ The current codebase has several areas that need improvement. See the detailed a
 
 ### Planned Refactoring
 
-All improvements are documented in the [Refactoring Plan](docs/refactoring-plan.md). The plan is organized into:
+All improvements are documented in the [Refactoring Plan](docs/REFACTORING_PLAN.md). The plan is organized into:
 
 - **Phase 1** (Week 1): Foundation & Structure
 - **Phase 2** (Week 1): Component Refactoring
@@ -1097,10 +1174,13 @@ All improvements are documented in the [Refactoring Plan](docs/refactoring-plan.
 **Solutions**:
 
 1. Verify `PAYSTACK_SECRET_KEY` is correct
-2. Check if `PAYSTACK_PUBLIC_KEY` is set as `NEXT_PUBLIC_`
-3. Test with Paystack sandbox first
-4. Check webhook URL is accessible
-5. Verify webhook signature verification
+2. Verify `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` is configured
+3. Confirm key separation: test keys in `preview` and live keys in `production`
+4. Verify webhook URL host matches the environment you are paying on
+5. If webhook target is a protected preview, include `?x-vercel-protection-bypass=<token>`
+6. Check invalid signature logs for host/environment mismatch
+7. Validate callback behavior from `/api/booking-requests/initiate` (request-origin derived)
+8. Use `GET /api/verify-payment?reference=...` to inspect processing state
 
 #### Build Errors
 

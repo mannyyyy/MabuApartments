@@ -5,6 +5,10 @@ type PaystackInitializePayload = {
   channels?: string[]
 }
 
+type PaystackInitializeOptions = {
+  callbackBaseUrl?: string
+}
+
 type PaystackInitializeResponse = {
   status: boolean
   message: string
@@ -134,12 +138,41 @@ async function parseInitializeResponse(response: Response): Promise<PaystackInit
   }
 }
 
-export async function initializePaystackTransaction(input: PaystackInitializePayload) {
-  const callbackBaseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || "http://localhost:3000"
-  const callbackUrl = callbackBaseUrl.startsWith("http")
-    ? `${callbackBaseUrl}/payment-success`
-    : `https://${callbackBaseUrl}/payment-success`
+function normalizeCallbackBaseUrl(baseUrl: string) {
+  const trimmed = baseUrl.trim().replace(/\/+$/, "")
+  if (!trimmed) {
+    return null
+  }
+
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed
+  }
+
+  return `https://${trimmed}`
+}
+
+function resolveCallbackBaseUrl(callbackBaseUrl?: string) {
+  const candidates = [callbackBaseUrl, process.env.NEXT_PUBLIC_APP_URL, process.env.VERCEL_URL]
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue
+    }
+
+    const normalized = normalizeCallbackBaseUrl(candidate)
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  return "http://localhost:3000"
+}
+
+export async function initializePaystackTransaction(
+  input: PaystackInitializePayload,
+  options: PaystackInitializeOptions = {},
+) {
+  const callbackBaseUrl = resolveCallbackBaseUrl(options.callbackBaseUrl)
+  const callbackUrl = `${callbackBaseUrl}/payment-success`
   const timeoutMs = getPositiveIntegerEnv("PAYSTACK_INIT_TIMEOUT_MS", 10000)
   const maxRetries = getPositiveIntegerEnv("PAYSTACK_INIT_MAX_RETRIES", 2)
   const retryBaseMs = getPositiveIntegerEnv("PAYSTACK_INIT_RETRY_BASE_MS", 400)

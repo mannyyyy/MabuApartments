@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer"
+import fs from "fs"
+import path from "path"
 import { format } from "date-fns"
 import prisma from "@/lib/db"
 
@@ -12,7 +14,58 @@ const transporter = nodemailer.createTransport({
   },
 })
 
-function generateBookingEmailTemplate(bookingDetails: any) {
+const BOOKING_LOGO_CID = "mabu-booking-logo"
+const LOGO_FILE_NAME = "MABU.png"
+const LOGO_RELATIVE_PATH = `/images/${LOGO_FILE_NAME}`
+
+function getPublicAppUrl() {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+  if (!baseUrl) {
+    return "http://localhost:3000"
+  }
+
+  const trimmed = baseUrl.trim().replace(/\/+$/, "")
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed
+  }
+
+  return `https://${trimmed}`
+}
+
+async function getInlineLogoAttachment() {
+  const logoPath = path.join(process.cwd(), "public", "images", LOGO_FILE_NAME)
+
+  if (fs.existsSync(logoPath)) {
+    return {
+      filename: LOGO_FILE_NAME,
+      path: logoPath,
+      cid: BOOKING_LOGO_CID,
+      contentDisposition: "inline" as const,
+      contentType: "image/png",
+    }
+  }
+
+  try {
+    const logoUrl = `${getPublicAppUrl()}${LOGO_RELATIVE_PATH}`
+    const response = await fetch(logoUrl, { cache: "no-store" })
+    if (!response.ok) {
+      return null
+    }
+
+    const arrayBuffer = await response.arrayBuffer()
+    return {
+      filename: LOGO_FILE_NAME,
+      content: Buffer.from(arrayBuffer),
+      cid: BOOKING_LOGO_CID,
+      contentDisposition: "inline" as const,
+      contentType: "image/png",
+    }
+  } catch {
+    return null
+  }
+}
+
+function generateBookingEmailTemplate(bookingDetails: any, logoSrc: string) {
   const formattedCheckIn = format(new Date(bookingDetails.checkIn), "EEEE, MMMM do yyyy")
   const formattedCheckOut = format(new Date(bookingDetails.checkOut), "EEEE, MMMM do yyyy")
 
@@ -32,7 +85,7 @@ function generateBookingEmailTemplate(bookingDetails: any) {
                 <!-- Header -->
                 <tr>
                   <td style="padding: 40px 40px 20px 40px; text-align: center;">
-                    <img src="${process.env.NEXT_PUBLIC_APP_URL}/images/logo.png" alt="Mabu Apartments" style="width: 150px; height: auto;">
+                    <img src="${logoSrc}" alt="Mabu Apartments" style="width: 150px; height: auto;">
                     <h1 style="color: #333; margin: 20px 0; font-size: 28px;">Booking Confirmation</h1>
                   </td>
                 </tr>
@@ -326,11 +379,15 @@ async function generateManagerEmailTemplate(bookingDetails: any) {
 }
 
 export async function sendBookingConfirmationEmail(to: string, bookingDetails: any) {
+  const logoAttachment = await getInlineLogoAttachment()
+  const logoSrc = logoAttachment ? `cid:${BOOKING_LOGO_CID}` : `${getPublicAppUrl()}${LOGO_RELATIVE_PATH}`
+
   const mailOptions = {
     from: process.env.EMAIL_FROM,
     to: to,
     subject: "Booking Confirmation - Mabu Apartments",
-    html: generateBookingEmailTemplate(bookingDetails),
+    html: generateBookingEmailTemplate(bookingDetails, logoSrc),
+    attachments: logoAttachment ? [logoAttachment] : [],
   }
 
   await transporter.sendMail(mailOptions)
