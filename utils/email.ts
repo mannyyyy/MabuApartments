@@ -15,7 +15,7 @@ const transporter = nodemailer.createTransport({
 })
 
 const BOOKING_LOGO_CID = "mabu-booking-logo"
-const LOGO_FILE_NAME = "MABU.png"
+const LOGO_FILE_NAME = "mabu-logo.PNG"
 const LOGO_RELATIVE_PATH = `/images/${LOGO_FILE_NAME}`
 
 function getPublicAppUrl() {
