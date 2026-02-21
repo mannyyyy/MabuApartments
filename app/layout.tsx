@@ -25,6 +25,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Mabu Apartments',
     description: 'Luxury apartments for your stay in Abuja',
+  },
   icons: {
     icon: [
       { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
