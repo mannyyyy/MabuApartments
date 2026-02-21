@@ -12,7 +12,7 @@
 - autonomy: `HITL`
 
 ## Current Pointer
-- active_scope_id: `E7_PAYMENT_FLOW_HARDENING_AND_UNUSED_ENDPOINT_REMOVAL`
+- active_scope_id: `E8_AVAILABILITY_SYNC_AND_DYNAMIC_CHECKIN`
 - active_status: `done`
 
 ## Iteration Log
@@ -65,3 +65,9 @@
 - gate_results: pass
 - next_scope_id: TBD
 - notes: Merged PR #33: feat: harden payment flow and remove unused api routes
+
+
+### 2026-02-20T11:54:40Z | scope_id=E8_AVAILABILITY_SYNC_AND_DYNAMIC_CHECKIN | status=done
+- gate_results: pass
+- next_scope_id: TBD
+- notes: Merged PR #35: feat: sync availability rows and enable dynamic vacant-room check-in

@@ -40,21 +40,13 @@ npm run check:pr-template
 ```
 
 ### CI
-- `validate-pr-template.yml` fails PRs when `.github/PULL_REQUEST_TEMPLATE.md` is stale relative to `.github/phase-state.yml`.
-- `validate-pr-scope-id.yml` fails PRs when PR description is missing/invalid `Scope ID` for the active `scope_prefix`.
-- `sync-pr-template.yml` auto-syncs template on `main` when phase-state/generator changes.
-- `record-progress-on-merge.yml` auto-records a `done` entry in the phase progress log when a PR is merged to `main` and contains `Scope ID` in the PR body.
 - `release-gates.yml` runs lint, typecheck, and tests for PRs targeting `main`.
-- `payment-reconciliation.yml` runs hourly on `main` (and on demand) to detect payment consistency issues.
 
 ## Progress Logging (Default)
 - Manual command:
 ```bash
 npm run record:progress -- --scope-id B7_AVAILABILITY_SERVICE_EXTRACTION --status done --gate-results pass --next-scope-id TBD --notes "Merged PR #9"
 ```
-- Default automation:
-  PR merge to `main` triggers automatic progress-log updates via `.github/workflows/record-progress-on-merge.yml`.
-  If `Scope ID` is missing, the workflow now fails explicitly instead of silently skipping.
 
 ## Phase Change Procedure
 1. Update `.github/phase-state.yml`:
@@ -64,7 +56,7 @@ npm run record:progress -- --scope-id B7_AVAILABILITY_SERVICE_EXTRACTION --statu
 - guard settings if needed
 2. Run `npm run generate:pr-template`.
 3. Commit config + generated template.
-4. Merge to `main` (sync workflow keeps template aligned).
+4. Merge to `main`.
 
 ## Gate Profiles
 - `phase_a_strict`: `lint`, `typecheck`, `build`

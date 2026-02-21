@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import { Phone, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -34,9 +35,14 @@ export function MobileNavigation({ isOpen, onClose }: MobileNavigationProps) {
       >
         <div className="relative flex-shrink-0 px-6 py-6 border-b border-gray-200">
           <div className="flex items-center justify-center">
-            <Link href="/" onClick={onClose} className="text-center">
-              <span className="block text-2xl font-bold tracking-wide text-black">MABU</span>
-              <span className="block text-xs font-light tracking-widest text-black">APARTMENTS</span>
+            <Link href="/" onClick={onClose} className="text-center" aria-label="Mabu Apartments home">
+              <Image
+                src="/images/mabu-logo.PNG"
+                alt="Mabu Apartments logo"
+                width={136}
+                height={136}
+                className="mx-auto h-[136px] w-[136px] object-contain"
+              />
             </Link>
           </div>
           <button
@@ -87,4 +93,3 @@ export function MobileNavigation({ isOpen, onClose }: MobileNavigationProps) {
     </>
   )
 }
-
