@@ -4,12 +4,16 @@ import { Prisma } from "@prisma/client"
 import prisma from "@/lib/db"
 import { createBookingAction } from "@/app/actions/bookings"
 import { verifyPaystackTransaction } from "@/lib/payments/paystack"
-import { findAvailableRoom } from "@/services/availability.service"
 import {
   getBookingRequestByIdOrReference,
   markBookingRequestAsPaid,
   markBookingRequestAsPaidNeedsReview,
 } from "@/services/booking-request.service"
+import {
+  getActiveBookingHoldByRequestId,
+  markBookingHoldAsConverted,
+  markBookingHoldAsReleased,
+} from "@/services/booking-hold.service"
 
 type ChargeSuccessPayload = {
   event: string
@@ -157,18 +161,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true, requiresReview: true })
     }
 
-    const availableRoom = await findAvailableRoom({
-      roomTypeId: bookingRequest.roomTypeId,
-      checkIn: bookingRequest.arrivalDate.toISOString(),
-      checkOut: bookingRequest.departureDate.toISOString(),
-    })
-
-    if (!availableRoom) {
+    const activeHold = await getActiveBookingHoldByRequestId(bookingRequest.id)
+    if (!activeHold) {
       await markBookingRequestAsPaidNeedsReview({
         bookingRequestId: bookingRequest.id,
         paymentReference,
-        reviewReason: "PAID_BUT_NO_ROOM_AVAILABLE",
-        lastError: "Payment is verified but no room is available for the selected dates.",
+        reviewReason: "PAID_AFTER_HOLD_EXPIRED",
+        lastError: "Payment is verified, but the inventory hold expired before webhook confirmation.",
+        verifiedAmountKobo,
+        verifiedCurrency,
+      })
+      return NextResponse.json({ received: true, requiresReview: true })
+    }
+
+    if (activeHold.paymentReference && activeHold.paymentReference !== paymentReference) {
+      await markBookingRequestAsPaidNeedsReview({
+        bookingRequestId: bookingRequest.id,
+        paymentReference,
+        reviewReason: "REFERENCE_MISMATCH_WITH_HOLD",
+        lastError: `Hold reference ${activeHold.paymentReference} did not match webhook reference ${paymentReference}.`,
         verifiedAmountKobo,
         verifiedCurrency,
       })
@@ -177,7 +188,7 @@ export async function POST(req: Request) {
 
     try {
       const bookingResult = await createBookingAction({
-        roomId: availableRoom.id,
+        roomId: activeHold.roomId,
         guestName: bookingRequest.fullName,
         guestEmail: bookingRequest.email,
         checkIn: bookingRequest.arrivalDate.toISOString(),
@@ -195,6 +206,7 @@ export async function POST(req: Request) {
           verifiedAmountKobo,
           verifiedCurrency,
         })
+        await markBookingHoldAsReleased(bookingRequest.id)
         return NextResponse.json({ received: true, requiresReview: true })
       }
 
@@ -205,6 +217,7 @@ export async function POST(req: Request) {
         verifiedAmountKobo,
         verifiedCurrency,
       })
+      await markBookingHoldAsConverted(bookingRequest.id)
 
       return NextResponse.json({ received: true, bookingId: bookingResult.booking.id })
     } catch (error) {
@@ -222,6 +235,7 @@ export async function POST(req: Request) {
             verifiedAmountKobo,
             verifiedCurrency,
           })
+          await markBookingHoldAsConverted(bookingRequest.id)
           return NextResponse.json({ received: true, deduped: true, bookingId: existingBooking.id })
         }
       }
@@ -234,6 +248,7 @@ export async function POST(req: Request) {
         verifiedAmountKobo,
         verifiedCurrency,
       })
+      await markBookingHoldAsReleased(bookingRequest.id)
       return NextResponse.json({ received: true, requiresReview: true })
     }
   } catch (error) {

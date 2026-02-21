@@ -16,6 +16,7 @@
     "check-bookings": "node scripts/ops/check-bookings.js",
     "check-availabilities": "node scripts/ops/check-availabilities.js",
     "backfill:availability": "node scripts/ops/backfill-availability.js",
+    "expire:booking-holds": "node scripts/ops/expire-booking-holds.js",
     "clear-db": "node scripts/ops/clear-database.js",
     "generate:pr-template": "node scripts/ralph/generate-pr-template.js",
     "check:pr-template": "node scripts/ralph/generate-pr-template.js --check",

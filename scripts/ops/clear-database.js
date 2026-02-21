@@ -67,6 +67,7 @@ async function main() {
     }
 
     await deleteManyIfExists("review")
+    await deleteManyIfExists("bookingHold")
     await deleteManyIfExists("availability")
     await deleteManyIfExists("bookingRequest")
     await deleteManyIfExists("booking")
