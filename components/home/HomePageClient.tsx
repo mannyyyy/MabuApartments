@@ -485,7 +485,7 @@ export default function Home() {
             <div className="testimonial-carousel">
               {[...testimonials, ...testimonials, ...testimonials].map((testimonial, index) => (
                 <div key={index} className="w-full sm:w-1/2 lg:w-1/3 px-4">
-                  <Card className="bg-gray-800 text-white border-0 h-full">
+                  <Card className="bg-[#F5F2ED] text-gray-900 border-0 h-full">
                     <CardHeader>
                       <div className="flex items-center space-x-4">
                         <Image
@@ -496,15 +496,15 @@ export default function Home() {
                           className="rounded-full"
                         />
                         <div>
-                          <CardTitle className="text-white text-sm sm:text-base">{testimonial.name}</CardTitle>
-                          <CardDescription className="text-gray-300 text-xs sm:text-sm">
+                          <CardTitle className="text-gray-900 text-sm sm:text-base">{testimonial.name}</CardTitle>
+                          <CardDescription className="text-gray-600 text-xs sm:text-sm">
                             {testimonial.date}
                           </CardDescription>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-xs sm:text-sm md:text-base text-gray-200">&quot;{testimonial.quote}&quot;</p>
+                      <p className="text-xs sm:text-sm md:text-base text-gray-700">&quot;{testimonial.quote}&quot;</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -516,4 +516,3 @@ export default function Home() {
     </div>
   )
 }
-

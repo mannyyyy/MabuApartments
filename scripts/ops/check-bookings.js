@@ -27,6 +27,23 @@ async function getRecentBookingRequests() {
   }
 }
 
+async function getRecentBookingHolds() {
+  try {
+    return await prisma.bookingHold.findMany({
+      orderBy: { createdAt: "desc" },
+      take: MAX_ROWS,
+      include: {
+        room: true,
+      },
+    })
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") {
+      return null
+    }
+    throw error
+  }
+}
+
 async function main() {
   try {
     const bookings = await prisma.booking.findMany({
@@ -58,6 +75,19 @@ async function main() {
     requests.forEach((request, index) => {
       console.log(
         `${index + 1}. ${request.id} | ${request.fullName} | ${request.email} | ${request.paymentStatus} | ref=${request.paymentReference || "none"} | booking=${request.bookingId || "none"}`,
+      )
+    })
+
+    const holds = await getRecentBookingHolds()
+    if (holds === null) {
+      console.log("Recent booking holds: table not present in current schema")
+      return
+    }
+
+    console.log(`Recent booking holds (${holds.length}):`)
+    holds.forEach((hold, index) => {
+      console.log(
+        `${index + 1}. ${hold.id} | room=${hold.room.roomNumber} | status=${hold.status} | expires=${hold.expiresAt.toISOString()} | request=${hold.bookingRequestId || "none"} | ref=${hold.paymentReference || "none"}`,
       )
     })
   } catch (error) {

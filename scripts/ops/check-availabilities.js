@@ -82,8 +82,9 @@ function getAuditHorizonDays() {
 
 async function main() {
   try {
+    const now = new Date()
     const horizonDays = getAuditHorizonDays()
-    const startDay = toLagosDayKey(new Date())
+    const startDay = toLagosDayKey(now)
     const startEpochDay = dayKeyToEpochDay(startDay)
     const endEpochDay = startEpochDay + horizonDays
     const endDay = epochDayToDayKey(endEpochDay)
@@ -106,6 +107,26 @@ async function main() {
           select: {
             checkIn: true,
             checkOut: true,
+          },
+        },
+        bookingHolds: {
+          where: {
+            status: "active",
+            expiresAt: {
+              gt: now,
+            },
+            departureDate: {
+              gt: startDate,
+            },
+            arrivalDate: {
+              lt: new Date(endDate.getTime() + MS_PER_DAY),
+            },
+          },
+          select: {
+            arrivalDate: true,
+            departureDate: true,
+            expiresAt: true,
+            status: true,
           },
         },
       },
@@ -153,10 +174,13 @@ async function main() {
       for (let epochDay = startEpochDay; epochDay <= endEpochDay; epochDay += 1) {
         const dayKey = epochDayToDayKey(epochDay)
         const nextDayKey = epochDayToDayKey(epochDay + 1)
-        const isBooked = room.bookings.some((booking) =>
+        const hasBooking = room.bookings.some((booking) =>
           bookingRangesOverlapByDay(dayKey, nextDayKey, booking.checkIn, booking.checkOut),
         )
-        const expectedAvailability = !isBooked
+        const hasHold = room.bookingHolds.some((hold) =>
+          bookingRangesOverlapByDay(dayKey, nextDayKey, hold.arrivalDate, hold.departureDate),
+        )
+        const expectedAvailability = !(hasBooking || hasHold)
         const mapKey = `${room.id}|${dayKey}`
 
         expectedSlots += 1
@@ -184,11 +208,12 @@ async function main() {
         expectedSlots: roomExpected,
         presentSlots: roomPresent,
         missingSlots: roomMissing,
-        mismatchSlots: roomMismatch,
+        mismatchedSlots: roomMismatch,
+        activeHolds: room.bookingHolds.length,
       }
     })
 
-    console.log(`Availability audit window: ${startDay} -> ${endDay} (${horizonDays + 1} days)`)
+    console.log(`Availability audit window: ${startDay} -> ${endDay} (${horizonDays + 1} days)`) 
     console.log(`Rooms: ${rooms.length}`)
     console.log(`Expected slots: ${expectedSlots}`)
     console.log(`Present slots: ${presentSlots}`)
@@ -198,7 +223,7 @@ async function main() {
     console.log("Per-room coverage:")
     perRoomReport.forEach((room) => {
       console.log(
-        `- ${room.roomNumber} (${room.roomType}) expected=${room.expectedSlots} present=${room.presentSlots} missing=${room.missingSlots} mismatched=${room.mismatchSlots}`,
+        `- ${room.roomNumber} (${room.roomType}) expected=${room.expectedSlots} present=${room.presentSlots} missing=${room.missingSlots} mismatched=${room.mismatchedSlots} active_holds=${room.activeHolds}`,
       )
     })
   } catch (error) {

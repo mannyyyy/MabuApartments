@@ -1,6 +1,5 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -14,6 +13,13 @@ enum BookingRequestPaymentStatus {
   paid_needs_review
   failed
   expired
+}
+
+enum BookingHoldStatus {
+  active
+  converted
+  expired
+  released
 }
 
 enum GuestType {
@@ -39,6 +45,7 @@ model RoomType {
   images          String[]
   rooms           Room[]
   bookingRequests BookingRequest[]
+  bookingHolds    BookingHold[]
   roomCount       Int
 }
 
@@ -48,6 +55,7 @@ model Room {
   roomTypeId   String
   roomNumber   String         @unique
   bookings     Booking[]
+  bookingHolds BookingHold[]
   availability Availability[]
   reviews      Review[]
 }
@@ -96,11 +104,34 @@ model BookingRequest {
   verifiedAmountKobo     Int?
   verifiedCurrency       String?
   booking                Booking?                    @relation(fields: [bookingId], references: [id])
+  bookingHold            BookingHold?
   createdAt              DateTime                    @default(now())
   updatedAt              DateTime                    @updatedAt
 
   @@index([createdAt])
   @@index([roomTypeId, arrivalDate, departureDate])
+}
+
+model BookingHold {
+  id               String           @id @default(cuid())
+  roomId           String
+  room             Room             @relation(fields: [roomId], references: [id])
+  roomTypeId       String
+  roomType         RoomType         @relation(fields: [roomTypeId], references: [id])
+  bookingRequestId String?          @unique
+  bookingRequest   BookingRequest?  @relation(fields: [bookingRequestId], references: [id], onDelete: SetNull)
+  paymentReference String?
+  arrivalDate      DateTime
+  departureDate    DateTime
+  expiresAt        DateTime
+  status           BookingHoldStatus @default(active)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([roomTypeId, status, expiresAt])
+  @@index([roomId, status, expiresAt])
+  @@index([arrivalDate, departureDate])
+  @@index([paymentReference])
 }
 
 model Availability {

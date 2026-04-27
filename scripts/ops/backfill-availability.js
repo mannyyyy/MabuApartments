@@ -116,6 +116,7 @@ function getConfiguredHorizonDays() {
 }
 
 async function main() {
+  const now = new Date()
   const startDay = getConfiguredStartDay()
   const horizonDays = getConfiguredHorizonDays()
   const startEpochDay = dayKeyToEpochDay(startDay)
@@ -126,16 +127,28 @@ async function main() {
 
   const rooms = await prisma.room.findMany({
     include: {
-      roomType: true,
       bookings: {
         where: {
           checkOut: { gt: windowStart },
           checkIn: { lt: windowEndExclusive },
         },
         select: {
-          id: true,
           checkIn: true,
           checkOut: true,
+        },
+      },
+      bookingHolds: {
+        where: {
+          status: "active",
+          expiresAt: {
+            gt: now,
+          },
+          departureDate: { gt: windowStart },
+          arrivalDate: { lt: windowEndExclusive },
+        },
+        select: {
+          arrivalDate: true,
+          departureDate: true,
         },
       },
     },
@@ -147,8 +160,11 @@ async function main() {
     for (let epochDay = startEpochDay; epochDay <= endEpochDay; epochDay += 1) {
       const dayKey = epochDayToDayKey(epochDay)
       const nextDayKey = epochDayToDayKey(epochDay + 1)
-      const isBooked = room.bookings.some((booking) =>
+      const hasBooking = room.bookings.some((booking) =>
         bookingRangesOverlapByDay(dayKey, nextDayKey, booking.checkIn, booking.checkOut),
+      )
+      const hasHold = room.bookingHolds.some((hold) =>
+        bookingRangesOverlapByDay(dayKey, nextDayKey, hold.arrivalDate, hold.departureDate),
       )
 
       await prisma.availability.upsert({
@@ -161,10 +177,10 @@ async function main() {
         create: {
           roomId: room.id,
           date: toUtcMidnightFromDayKey(dayKey),
-          isAvailable: !isBooked,
+          isAvailable: !(hasBooking || hasHold),
         },
         update: {
-          isAvailable: !isBooked,
+          isAvailable: !(hasBooking || hasHold),
         },
       })
 

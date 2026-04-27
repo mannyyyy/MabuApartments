@@ -21,6 +21,7 @@ async function main() {
     const counts = {
       roomType: await safeCount("roomType"),
       room: await safeCount("room"),
+      bookingHold: await safeCount("bookingHold"),
       availability: await safeCount("availability"),
       booking: await safeCount("booking"),
       bookingRequest: await safeCount("bookingRequest"),
